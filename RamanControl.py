@@ -25,7 +25,12 @@ class RamanControl:
         self.rho_B = np.empty_like(self.rho_A, dtype=np.complex)
 
         self.time = np.linspace(-self.timeAMP, self.timeAMP, self.timeDIM, endpoint=False)
-        self.field = np.empty(self.timeDIM, dtype=np.complex)
+        self.time_spectra = np.linspace(-self.timeAMP_spectra, self.timeAMP_spectra, self.timeDIM_spectra, endpoint=False)
+        self.field = np.empty(self.timeDIM)
+        self.field_spectra = np.empty(self.timeDIM_spectra, dtype=np.complex)
+        self.freq_spectra = np.linspace(self.freq_min, self.freq_max, self.freqDIM)
+        self.spectra_A = np.empty(self.freqDIM, dtype=np.complex)
+        self.spectra_B = np.empty(self.freqDIM, dtype=np.complex)
 
     def create_molecule(self, MolA, MolB):
         """
@@ -45,6 +50,8 @@ class RamanControl:
         MolB.rho = self.rho_B.ctypes.data_as(POINTER(c_complex))
         MolA.dyn_rho = self.dyn_rho_A.ctypes.data_as(POINTER(c_complex))
         MolB.dyn_rho = self.dyn_rho_B.ctypes.data_as(POINTER(c_complex))
+        MolA.spectra = self.spectra_A.ctypes.data_as(POINTER(c_complex))
+        MolB.spectra = self.spectra_B.ctypes.data_as(POINTER(c_complex))
 
         return
 
@@ -69,7 +76,26 @@ class RamanControl:
         func_params.w_EE = self.w_EE
         func_params.nDIM = self.nDIM
         func_params.timeDIM = self.timeDIM
-        func_params.field_out = self.field.ctypes.data_as(POINTER(c_complex))
+        func_params.field_out = self.field.ctypes.data_as(POINTER(c_double))
+
+        return
+
+    def create_spectra_parameters(self, spec_params):
+        """
+        Initializes an instance of the Structure "Parameters"
+        :param func_params: Parameter Structure instance to be updated
+        :return: None
+        """
+
+        spec_params.field_spectra = self.field_spectra.ctypes.data_as(POINTER(c_complex))
+        spec_params.freq_spectra = self.freq_spectra.ctypes.data_as(POINTER(c_double))
+        spec_params.freqDIM = self.freqDIM
+        spec_params.w_R = self.w_R
+        spec_params.A_S = self.A_S
+        spec_params.width_S = self.timeAMP_spectra / self.width_S
+        spec_params.time_spectra = self.time_spectra.ctypes.data_as(POINTER(c_double))
+        spec_params.timeDIM_spectra = self.timeDIM_spectra
+        spec_params.nDIM = self.nDIM
 
         return
 
@@ -81,9 +107,11 @@ class RamanControl:
         MolA = Molecule()
         MolB = Molecule()
         func_params = Parameters()
+        spec_params = SpectraParams()
         self.create_molecule(MolA, MolB)
         self.create_parameters(func_params)
-        RamanControlFunction(MolA, MolB, func_params)
+        self.create_spectra_parameters(spec_params)
+        RamanControlFunction(MolA, MolB, func_params, spec_params)
 
 
 if __name__ == '__main__':
@@ -98,7 +126,7 @@ if __name__ == '__main__':
                                                                                 ##################################################################
                                                                                 #                                                                #
     energies_A = np.array((0.000, 0.07439, 1.94655, 2.02094)) * energy_factor   #   Energies in a.u. for molecule A                              #
-    energies_B = np.array((0.000, 0.07639, 1.96655, 2.04094)) * energy_factor   #   Energies in a.u. for molecule B                              #
+    energies_B = np.array((0.000, 0.09639, 1.92655, 2.00094)) * energy_factor   #   Energies in a.u. for molecule B                              #
                                                                                 #                                                                #
     N = len(energies_A)                                                         #                                                                #
     rho_0 = np.zeros((N, N), dtype=np.complex)                                  #                                                                #
@@ -107,7 +135,7 @@ if __name__ == '__main__':
     np.fill_diagonal(mu, 0j)                                                    #   \mu_{i, i} = 0.                                              #
                                                                                 #                                                                #
     population_decay = 2.418884e-8                                              #   All population relaxation lifetimes equal 1 ns               #
-    electronic_dephasing = 2.418884e-4                                          #   All electronic dephasing 50 fs                               #
+    electronic_dephasing = 3. * 2.418884e-4                                     #   All electronic dephasing 50 fs                               #
     vibrational_dephasing = 1.422872e-5                                         #   All vibrational dephasing 1 ps                               #
                                                                                 #                                                                #
     gamma_decay = np.ones((N, N)) * population_decay                            #                                                                #
@@ -120,6 +148,12 @@ if __name__ == '__main__':
     gamma_pure_dephasing[3, 2] = vibrational_dephasing                          ##################################################################
     gamma_pure_dephasing[0, 1] = vibrational_dephasing
     gamma_pure_dephasing[2, 3] = vibrational_dephasing
+    gamma_pure_dephasing[2, 0] *= 1.
+    gamma_pure_dephasing[0, 2] *= 1.
+    gamma_pure_dephasing[3, 0] *= 2.
+    gamma_pure_dephasing[0, 3] *= 2.
+    gamma_pure_dephasing[1, 3] *= 1.
+    gamma_pure_dephasing[3, 1] *= 1.
 
     lower_bounds = np.asarray([0.00020, timeAMP / 25.0, 0.9 * energies_A[1], 1.2 * energy_factor])
     upper_bounds = np.asarray([0.00070, timeAMP / 6.0, 1.1 * energies_A[1], 1.6 * energy_factor])
@@ -157,13 +191,52 @@ if __name__ == '__main__':
         gamma_pcd_A=gamma_pure_dephasing,
         gamma_pcd_B=gamma_pure_dephasing,
         mu=mu,
+
+        freqDIM=100,
+        freq_min=.05 * energy_factor,
+        freq_max=.12 * energy_factor,
+        A_S=0.00005,
+        width_S=4.,
+        timeDIM_spectra=40000,
+        timeAMP_spectra=20000
     )
 
-    for i in range(10):
-        system = RamanControl(**params)
-        system.A_R *= (i / 10.) + 1.
-        system.call_raman_optimization()
-        plt.plot(system.time, system.dyn_rho_A.real[0], label=str(system.A_R))
-        del system
-    plt.legend()
+    gamma = 9. * gamma_pure_dephasing.copy()
+    for i in range(4):
+        for j in range(4):
+            for k in range(4):
+                if k > i:
+                    gamma[i, j] += gamma_decay[k, i]
+                if k > j:
+                    gamma[i, j] += gamma_decay[k, j]
+            gamma[i, j] *= 0.5
+
+    print(gamma)
+    N = 100
+    omega = np.linspace(params['freq_min'], params['freq_max'], params['freqDIM'])
+    spectraA = np.zeros(N)
+    spectraB = np.zeros(N)
+
+    for i in range(N):
+        spectraA[i] *= 0.
+        spectraB[i] *= 0.
+        for j in range(1, 4):
+            # spectraA[i] += energies_A[j] * np.abs(mu[j, 0]) ** 2 * gamma[j, 0] / (
+            #         (energies_A[j] - omega[i]) ** 2 + gamma[j, 0] ** 2)
+            # spectraB[i] += energies_B[j] * np.abs(mu[j, 0]) ** 2 * gamma[j, 0] / (
+            #         (energies_B[j] - omega[i]) ** 2 + gamma[j, 0] ** 2)
+            spectraA[i] += (energies_A[j] / (energies_A[j]**2 - (omega[i] - 1j*gamma[j, 0])**2)).imag * omega[i]
+            spectraB[i] += (energies_B[j] / (energies_B[j]**2 - (omega[i] - 1j*gamma[j, 0])**2)).imag * omega[i]
+
+    system = RamanControl(**params)
+    system.call_raman_optimization()
+    fig = plt.figure()
+    plt.plot(system.time_spectra, system.field_spectra)
+
+    fig1 = plt.figure()
+    plt.plot(1239.84193 / system.freq_spectra * energy_factor, system.spectra_A.real / np.abs(system.spectra_A).max(), 'r')
+    plt.plot(1239.84193 / system.freq_spectra * energy_factor, system.spectra_B.real / np.abs(system.spectra_A).max(), 'b')
+    # plt.plot(1239.84193 / omega * energy_factor, -spectraA / np.abs(spectraA).max(), 'r--')
+    # plt.plot(1239.84193 / omega * energy_factor, -spectraB / np.abs(spectraA).max(), 'b--')
     plt.show()
+

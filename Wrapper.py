@@ -43,7 +43,25 @@ class Parameters(Structure):
         ('nDIM', c_int),
         ('timeDIM', c_int),
 
-        ('field_out', POINTER(c_complex)),
+        ('field_out', POINTER(c_double))
+    ]
+
+
+class SpectraParams(Structure):
+    """
+    Spectra Parameters structure type
+    """
+    _fields_ = [
+        ('field_spectra', POINTER(c_complex)),
+        ('freq_spectra', POINTER(c_double)),
+        ('freqDIM', c_int),
+        ('w_R', c_double),
+        ('A_S', c_double),
+        ('width_S', c_double),
+        ('time_spectra', POINTER(c_double)),
+        ('timeDIM_spectra', c_int),
+        ('nDIM', c_int),
+        ('spectra', POINTER(c_complex))
     ]
 
 
@@ -56,7 +74,8 @@ class Molecule(Structure):
         ('gamma_decay', POINTER(c_double)),
         ('gamma_pcd', POINTER(c_double)),
         ('rho', POINTER(c_complex)),
-        ('dyn_rho', POINTER(c_complex))
+        ('dyn_rho', POINTER(c_complex)),
+        ('spectra', POINTER(c_complex))
     ]
 
 try:
@@ -81,14 +100,16 @@ lib.RamanControlFunction.argtypes = (
     POINTER(Molecule),      # molecule molA
     POINTER(Molecule),      # molecule molB
     POINTER(Parameters),    # parameter field_params
+    POINTER(SpectraParams)  # SpectraParams spec_params
 )
 lib.RamanControlFunction.restype = None
 
 
-def RamanControlFunction(molA, molB, func_params):
+def RamanControlFunction(molA, molB, func_params, spec_params):
     return lib.RamanControlFunction(
         molA,
         molB,
-        func_params
+        func_params,
+        spec_params
     )
 

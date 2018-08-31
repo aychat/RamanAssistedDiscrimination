@@ -26,9 +26,20 @@ typedef struct parameters{
     int nDIM;
     int timeDIM;
 
-    cmplx* field_out;
-
+    double* field_out;
 } parameters;
+
+typedef struct spectra_params{
+    cmplx* field_spectra;
+    double* freq_spectra;
+    int freqDIM;
+    double w_R;
+    double A_S;
+    double width_S;
+    double* time_spectra;
+    int timeDIM_spectra;
+    int nDIM;
+} spectra_params;
 
 typedef struct molecule{
     double* energies;
@@ -36,6 +47,7 @@ typedef struct molecule{
     double* gamma_pcd;
     cmplx* rho;
     cmplx* dyn_rho;
+    cmplx* spectra;
 } molecule;
 
 typedef struct mol_system{
@@ -293,11 +305,50 @@ void CalculateField(parameters* params)
     double w_v = params->w_v;
     double w_EE = params->w_EE;
 
-    cmplx* field = params->field_out;
-
     for(i=0; i<timeDIM; i++)
     {
-        field[i] = A_R * exp(-pow(t[i] - t0_R, 2) / (2. * pow(width_R, 2))) * (cos((w_R + w_v) * t[i]) + cos(w_R * t[i]));
+        params->field_out[i] = A_R * exp(-pow(t[i] - t0_R, 2) / (2. * pow(width_R, 2))) * (cos((w_R + w_v) * t[i]) + cos(w_R * t[i]));
+    }
+}
+
+void CalculateSpectraField(spectra_params* spec_params, int freqINDX)
+//-----------------------------------------------------------------//
+//   RETURNS THE SPECTRA CALCULATION FIELD AS A FUNCTION OF TIME   //
+//-----------------------------------------------------------------//
+{
+    int i;
+    int nDIM = spec_params->nDIM;
+    int timeDIM_spectra = spec_params->timeDIM_spectra;
+
+    double* t = spec_params->time_spectra;
+
+    double A_S = spec_params->A_S;
+    double width_S = spec_params->width_S;
+
+    for(i=0; i<spec_params->timeDIM_spectra; i++)
+    {
+        spec_params->field_spectra[i] = A_S * exp(-pow(t[i], 2) / (2. * pow(width_S, 2))) *
+        (cos((spec_params->w_R + spec_params->freq_spectra[freqINDX]) * t[i]) + cos(spec_params->w_R * t[i]));
+    }
+}
+
+void CalculateVibSpectraField(spectra_params* spec_params, int freqINDX)
+//----------------------------------------------------------------------//
+//   RETURNS THE VIB. SPECTRA CALCULATION FIELD AS A FUNCTION OF TIME   //
+//----------------------------------------------------------------------//
+{
+    int i;
+    int nDIM = spec_params->nDIM;
+    int timeDIM_spectra = spec_params->timeDIM_spectra;
+
+    double* t = spec_params->time_spectra;
+
+    double A_S = spec_params->A_S;
+    double width_S = spec_params->width_S;
+
+    for(i=0; i<spec_params->timeDIM_spectra; i++)
+    {
+        spec_params->field_spectra[i] = A_S * exp(-pow(t[i], 2) / (2. * pow(width_S, 2))) * (cos(spec_params->freq_spectra[freqINDX] * t[i]));
     }
 }
 
@@ -366,8 +417,6 @@ void Propagate(molecule* mol, parameters* params)
     cmplx *rho_0 = params->rho_0;
     double *time = params->time;
 
-    cmplx* field = params->field_out;
-
     double dt = time[1] - time[0];
 
     cmplx* L_rho_func = (cmplx*)calloc(nDIM * nDIM, sizeof(cmplx));
@@ -379,7 +428,7 @@ void Propagate(molecule* mol, parameters* params)
         k=1;
         do
         {
-            L_operate(L_rho_func, field[t_index], mol, params);
+            L_operate(L_rho_func, params->field_out[t_index], mol, params);
             scale_mat(L_rho_func, dt/k, nDIM);
             add_mat(L_rho_func, mol->rho, nDIM);
             k+=1;
@@ -404,18 +453,61 @@ void Propagate(molecule* mol, parameters* params)
 }
 
 
-void RamanControlFunction(molecule* molA, molecule* molB, parameters* func_params)
+void PropagateSpectra(molecule* mol, spectra_params* spec_params, parameters* params, int freqINDX)
+//----------------------------------------------------------------------//
+//    GETTING rho(T)_{k=[3,4]} FROM rho(0) USING PROPAGATE FUNCTION     //
+//----------------------------------------------------------------------//
+{
+    int i, j, k;
+    int tau_index, t_index;
+    int nDIM = spec_params->nDIM;
+    int timeDIM_spectra = spec_params->timeDIM_spectra;
+
+    double dt = spec_params->time_spectra[1] - spec_params->time_spectra[0];
+
+    cmplx* L_rho_func = (cmplx*)calloc(nDIM * nDIM, sizeof(cmplx));
+    copy_mat(params->rho_0, L_rho_func, nDIM);
+    copy_mat(params->rho_0, mol->rho, nDIM);
+
+    for(t_index=0; t_index<timeDIM_spectra; t_index++)
+    {
+        k=1;
+        do
+        {
+            L_operate(L_rho_func, spec_params->field_spectra[t_index], mol, params);
+            scale_mat(L_rho_func, dt/k, nDIM);
+            add_mat(L_rho_func, mol->rho, nDIM);
+            k+=1;
+        }while(complex_max_element(L_rho_func, nDIM) > 1.0E-8);
+
+        copy_mat(mol->rho, L_rho_func, nDIM);
+    }
+
+    free(L_rho_func);
+//    mol->spectra[freqINDX] = mol->rho[2*nDIM + 2] + mol->rho[3*nDIM + 3];
+    mol->spectra[freqINDX] = mol->rho[1*nDIM + 1];
+}
+
+
+void RamanControlFunction(molecule* molA, molecule* molB, parameters* func_params, spectra_params* spec_params)
 //------------------------------------------------------------//
 //    GETTING rho(T) FROM rho(0) USING PROPAGATE FUNCTION     //
 //------------------------------------------------------------//
 {
-    mol_system* Ensemble;
-    Ensemble->moleculeA = molA;
-    Ensemble->moleculeB = molB;
-    Ensemble->params = func_params;
+//    mol_system* Ensemble;
+//    Ensemble->moleculeA = molA;
+//    Ensemble->moleculeB = molB;
+//    Ensemble->params = func_params;
 
-    CalculateField(Ensemble->params);
-    Propagate(molA, func_params);
-    Propagate(molB, func_params);
-    free(Ensemble);
+//    CalculateField(Ensemble->params);
+//    Propagate(molA, func_params);
+//    Propagate(molB, func_params);
+//    free(Ensemble);
+
+    for(int i=0; i<spec_params->freqDIM; i++)
+    {
+        CalculateVibSpectraField(spec_params, i);
+        PropagateSpectra(molA, spec_params, func_params, i);
+        PropagateSpectra(molB, spec_params, func_params, i);
+    }
 }
