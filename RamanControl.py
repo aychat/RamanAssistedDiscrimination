@@ -125,35 +125,38 @@ if __name__ == '__main__':
     timeAMP = 20000.
                                                                                 ##################################################################
                                                                                 #                                                                #
-    energies_A = np.array((0.000, 0.07439, 1.94655, 2.02094)) * energy_factor   #   Energies in a.u. for molecule A                              #
-    energies_B = np.array((0.000, 0.09639, 1.92655, 2.00094)) * energy_factor   #   Energies in a.u. for molecule B                              #
+    energies_A = np.array((0.000, 0.16304, 0.20209, 1.87855)) * energy_factor   #   Energies in a.u. for molecule A                              #
+    energies_B = np.array((0.000, 0.15907, 0.19924, 1.77120)) * energy_factor   #   Energies in a.u. for molecule B                              #
                                                                                 #                                                                #
     N = len(energies_A)                                                         #                                                                #
     rho_0 = np.zeros((N, N), dtype=np.complex)                                  #                                                                #
     rho_0[0, 0] = 1. + 0j                                                       #   Only ground state populated                                  #
+
     mu = 4.97738 * np.ones_like(rho_0)                                          #   Dipole moment in a.u. (same for all allowed transition)      #
     np.fill_diagonal(mu, 0j)                                                    #   \mu_{i, i} = 0.                                              #
-                                                                                #                                                                #
+    mu[2, 1] = 0j
+    mu[1, 2] = 0j
     population_decay = 2.418884e-8                                              #   All population relaxation lifetimes equal 1 ns               #
-    electronic_dephasing = 3. * 2.418884e-4                                     #   All electronic dephasing 50 fs                               #
-    vibrational_dephasing = 1.422872e-5                                         #   All vibrational dephasing 1 ps                               #
+    electronic_dephasing = 2.418884e-4                                          #   All electronic dephasing 100 fs                              #
+    vibrational_dephasing = 2.418884e-5                                         #   All vibrational dephasing 1 ps                               #
                                                                                 #                                                                #
     gamma_decay = np.ones((N, N)) * population_decay                            #                                                                #
     np.fill_diagonal(gamma_decay, 0.0)                                          #   No decay for diagonal elements                               #
     gamma_decay = np.tril(gamma_decay)                                          #   Decay non-zero only from higher to lower energy levels       #
+    gamma_decay[2, 1] = 0
+    gamma_decay[1, 2] = 0
                                                                                 #                                                                #
     gamma_pure_dephasing = np.ones_like(gamma_decay) * electronic_dephasing     #                                                                #
     np.fill_diagonal(gamma_pure_dephasing, 0.0)                                 #   No dephasing for population terms                            #
     gamma_pure_dephasing[1, 0] = vibrational_dephasing                          #                                                                #
-    gamma_pure_dephasing[3, 2] = vibrational_dephasing                          ##################################################################
+    gamma_pure_dephasing[2, 0] = vibrational_dephasing                          ##################################################################
     gamma_pure_dephasing[0, 1] = vibrational_dephasing
-    gamma_pure_dephasing[2, 3] = vibrational_dephasing
-    gamma_pure_dephasing[2, 0] *= 1.
-    gamma_pure_dephasing[0, 2] *= 1.
-    gamma_pure_dephasing[3, 0] *= 2.
-    gamma_pure_dephasing[0, 3] *= 2.
-    gamma_pure_dephasing[1, 3] *= 1.
-    gamma_pure_dephasing[3, 1] *= 1.
+    gamma_pure_dephasing[0, 2] = vibrational_dephasing
+    gamma_pure_dephasing[1, 2] = 0.
+    gamma_pure_dephasing[2, 1] = 0.
+
+    print(gamma_decay)
+    print(gamma_pure_dephasing)
 
     lower_bounds = np.asarray([0.00020, timeAMP / 25.0, 0.9 * energies_A[1], 1.2 * energy_factor])
     upper_bounds = np.asarray([0.00070, timeAMP / 6.0, 1.1 * energies_A[1], 1.6 * energy_factor])
@@ -163,7 +166,7 @@ if __name__ == '__main__':
     params = dict(
         energy_factor=energy_factor,
         time_factor=time_factor,
-        timeDIM=40000,
+        timeDIM=20000,
         timeAMP=timeAMP,
         nDIM=N,
 
@@ -193,15 +196,15 @@ if __name__ == '__main__':
         mu=mu,
 
         freqDIM=100,
-        freq_min=.05 * energy_factor,
-        freq_max=.12 * energy_factor,
+        freq_min=.13 * energy_factor,
+        freq_max=.22 * energy_factor,
         A_S=0.00005,
         width_S=4.,
-        timeDIM_spectra=40000,
-        timeAMP_spectra=20000
+        timeDIM_spectra=200000,
+        timeAMP_spectra=40000
     )
 
-    gamma = 9. * gamma_pure_dephasing.copy()
+    gamma = gamma_pure_dephasing.copy()
     for i in range(4):
         for j in range(4):
             for k in range(4):
@@ -212,8 +215,8 @@ if __name__ == '__main__':
             gamma[i, j] *= 0.5
 
     print(gamma)
-    N = 100
-    omega = np.linspace(params['freq_min'], params['freq_max'], params['freqDIM'])
+    N = 1000
+    omega = np.linspace(params['freq_min'], params['freq_max'], N)
     spectraA = np.zeros(N)
     spectraB = np.zeros(N)
 
@@ -221,22 +224,34 @@ if __name__ == '__main__':
         spectraA[i] *= 0.
         spectraB[i] *= 0.
         for j in range(1, 4):
-            # spectraA[i] += energies_A[j] * np.abs(mu[j, 0]) ** 2 * gamma[j, 0] / (
-            #         (energies_A[j] - omega[i]) ** 2 + gamma[j, 0] ** 2)
-            # spectraB[i] += energies_B[j] * np.abs(mu[j, 0]) ** 2 * gamma[j, 0] / (
-            #         (energies_B[j] - omega[i]) ** 2 + gamma[j, 0] ** 2)
+            spectraA[i] += energies_A[j] * np.abs(mu[j, 0]) ** 2 * gamma[j, 0] / (
+                    (energies_A[j] - omega[i]) ** 2 + gamma[j, 0] ** 2)
+            spectraB[i] += energies_B[j] * np.abs(mu[j, 0]) ** 2 * gamma[j, 0] / (
+                    (energies_B[j] - omega[i]) ** 2 + gamma[j, 0] ** 2)
             spectraA[i] += (energies_A[j] / (energies_A[j]**2 - (omega[i] - 1j*gamma[j, 0])**2)).imag * omega[i]
             spectraB[i] += (energies_B[j] / (energies_B[j]**2 - (omega[i] - 1j*gamma[j, 0])**2)).imag * omega[i]
+    plt.plot(1e7 / (1239.84193 / omega * energy_factor), spectraA / np.abs(spectraA).max(), 'r')
+    plt.plot(1e7 / (1239.84193 / omega * energy_factor), spectraB / np.abs(spectraA).max(), 'b')
 
-    system = RamanControl(**params)
-    system.call_raman_optimization()
-    fig = plt.figure()
-    plt.plot(system.time_spectra, system.field_spectra)
+    # system = RamanControl(**params)
+    # system.call_raman_optimization()
+    # # fig = plt.figure()
+    # # plt.plot(system.time_spectra, system.field_spectra)
+    #
+    # fig1, ax = plt.subplots(nrows=1, ncols=1)
+    # ax.set_title("MolA $\\omega_{10}$ = 600 $cm^{-1}$ \nMolB $\\omega_{10}$ = 616 $cm^{-1}$")
+    # ax.plot(1e7 / (1239.84193 / system.freq_spectra * energy_factor),
+    #         system.spectra_A.real, 'r')
+    # ax.plot(1e7 / (1239.84193 / system.freq_spectra * energy_factor),
+    #         system.spectra_B.real, 'b')
+    #
+    # ax.get_xaxis().set_tick_params(which='both', direction='in', width=1)
+    # ax.get_yaxis().set_tick_params(which='both', direction='in', width=1)
+    # ax.get_xaxis().set_ticks_position('both')
+    # ax.get_yaxis().set_ticks_position('both')
+    # ax.grid(color='b', linestyle=':', linewidth=0.5)
+    # ax.set_xlabel('Wavelength ($cm^{-1}$)')
+    # ax.set_ylabel('Vibrational population')
 
-    fig1 = plt.figure()
-    plt.plot(1239.84193 / system.freq_spectra * energy_factor, system.spectra_A.real / np.abs(system.spectra_A).max(), 'r')
-    plt.plot(1239.84193 / system.freq_spectra * energy_factor, system.spectra_B.real / np.abs(system.spectra_A).max(), 'b')
-    # plt.plot(1239.84193 / omega * energy_factor, -spectraA / np.abs(spectraA).max(), 'r--')
-    # plt.plot(1239.84193 / omega * energy_factor, -spectraB / np.abs(spectraA).max(), 'b--')
     plt.show()
 

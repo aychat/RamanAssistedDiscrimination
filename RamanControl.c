@@ -498,12 +498,11 @@ void RamanControlFunction(molecule* molA, molecule* molB, parameters* func_param
 //    Ensemble->moleculeA = molA;
 //    Ensemble->moleculeB = molB;
 //    Ensemble->params = func_params;
-
+//
 //    CalculateField(Ensemble->params);
 //    Propagate(molA, func_params);
 //    Propagate(molB, func_params);
 //    free(Ensemble);
-
     for(int i=0; i<spec_params->freqDIM; i++)
     {
         CalculateVibSpectraField(spec_params, i);
