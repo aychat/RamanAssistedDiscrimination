@@ -37,7 +37,8 @@ class Parameters(Structure):
         ('t0_EE', c_double),
 
         ('w_R', c_double),
-        ('w_v', c_double),
+        ('w_v1', c_double),
+        ('w_v2', c_double),
         ('w_EE', c_double),
 
         ('nDIM', c_int),

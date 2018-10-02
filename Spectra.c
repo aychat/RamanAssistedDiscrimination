@@ -407,7 +407,7 @@ void PropagateAbs(molecule* mol, parameters_abs_spectra* params, int indx)
 
     }
 
-    mol->abs_spectra[indx] = mol->rho[3*nDIM + 3];
+    mol->abs_spectra[indx] = mol->rho[(nDIM-1)*nDIM + (nDIM-1)];
     free(L_rho_func);
 }
 
@@ -449,7 +449,10 @@ void PropagateVib(molecule* mol, parameters_vib_spectra* params, int indx)
 
     }
 
-    mol->vib_spectra[indx] = mol->rho[1*nDIM + 1] + mol->rho[2*nDIM + 2];
+    for (j=1; j<nDIM-1; j++)
+    {
+        mol->vib_spectra[indx] += mol->rho[j*nDIM + j];
+    }
     free(L_rho_func);
 }
 
@@ -458,8 +461,6 @@ cmplx* CalculateSpectra(molecule* molA, molecule* molB, parameters_abs_spectra* 
 //    GETTING rho(T) FROM rho(0) USING PROPAGATE FUNCTION     //
 //------------------------------------------------------------//
 {
-    printf("This will Calculate Spectra \n");
-
     for(int i=0; i<abs_spec_params->freqDIM_abs; i++)
     {
         CalculateAbsSpectraField(abs_spec_params, i);
