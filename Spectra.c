@@ -26,6 +26,7 @@ typedef struct parameters_vib_spectra{
 
     double A_vib;
     double width_vib;
+    double w_R;
 
     int nDIM;
     int timeDIM_vib;
@@ -309,11 +310,13 @@ void CalculateVibSpectraField(parameters_vib_spectra* params, int k)
 
     double A_vib = params->A_vib;
     double width_vib = params->width_vib;
+    double w_R = params->w_R;
 
 
     for(i=0; i<timeDIM_vib; i++)
     {
-        params->field_vib[i] = A_vib * exp(-pow(t[i], 2) / (2. * pow(width_vib, 2))) * cos(params->frequency_vib[k] * t[i]);
+        params->field_vib[i] = A_vib * pow(cos(M_PI*t[i]/(fabs(2*params->time_spectra_vib[0]))), 2) * (cos((w_R + params->frequency_vib[k]) * t[i]) + cos(w_R * t[i]));
+//        params->field_vib[i] = A_vib * exp(-pow(t[i], 2) / (2. * pow(width_vib, 2))) * (cos((params->frequency_vib[k]) * t[i]));
     }
 }
 

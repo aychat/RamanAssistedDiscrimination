@@ -139,6 +139,7 @@ class RamanControl:
 
         spectra_params.A_vib = params.A_vib
         spectra_params.width_vib = width_vib
+        spectra_params.w_R = params.vib_R
 
         spectra_params.nDIM = len(self.energies_A)
         spectra_params.timeDIM_vib = len(self.time_spectra_vib)
@@ -213,8 +214,8 @@ if __name__ == '__main__':
     # upper_bounds = np.asarray([0.00070, 0.00070, 10.0, 35.5, 1.1*energies_A[1], 1.0*(energies_A[3] - energies_A[2]), 0.45*energy_factor])
     # guess = np.asarray([0.0005, 0.0005, 4., 25., energies_A[1], energies_A[3] - energies_A[2], 0.4*energy_factor])
 
-    lower_bounds = np.asarray([0.00010, 3.5, 0.9 * energies_A[2], 0.9 * energies_A[3], 0.35 * energy_factor])
-    upper_bounds = np.asarray([0.00090, 10.0, 1.1 * energies_A[2], 1.1 * energies_A[3], 0.5 * energy_factor])
+    lower_bounds = np.asarray([0.000005, 3.5, 0.9 * energies_A[2], 0.9 * energies_A[3], 0.35 * energy_factor])
+    upper_bounds = np.asarray([0.000045, 10.0, 1.1 * energies_A[2], 1.1 * energies_A[3], 0.5 * energy_factor])
     guess = np.asarray([0.000709642, 3.52037, 0.00547927, 0.0069986, 0.0179549])
 
     params = ADict(
@@ -246,8 +247,8 @@ if __name__ == '__main__':
         timeDIM_spectra_abs=500,
         timeAMP_spectra_abs=5000,
 
-        timeDIM_spectra_vib=5000,
-        timeAMP_spectra_vib=50000,
+        timeDIM_spectra_vib=10000,
+        timeAMP_spectra_vib=1000000,
 
         frequencyDIM_abs=100,
         frequencyMIN_abs=1.3*energy_factor,
@@ -259,8 +260,10 @@ if __name__ == '__main__':
 
         A_abs=0.00001,
         width_abs=.5,
-        A_vib=0.00001,
-        width_vib=.5
+        A_vib=0.0000005,
+        width_vib=.05,
+
+        vib_R=0.5*energy_factor
     )
 
     FourLevels = dict(
@@ -334,38 +337,38 @@ if __name__ == '__main__':
     fig.subplots_adjust(left=None, bottom=None, right=None, top=0.8, wspace=0.025, hspace=0.55)
     # plt.show()
 
-    molecules.call_raman_control_func(params)
-    end_control = time.time()
-
-    print()
-    print("Time to calculate optimal field: ", end_control - end_spectra)
-    print()
-    fig2, axes = plt.subplots(nrows=1, ncols=1)
-    axes.plot(molecules.time*time_factor, molecules.field_t.real, 'r')
-
-    fig1, axes = plt.subplots(nrows=2, ncols=1, sharex=True, sharey=True)
-
-    axes[0].plot(molecules.time*time_factor, molecules.dyn_rhoA[0, :], label='11_A', linewidth=2.)
-    axes[0].plot(molecules.time*time_factor, molecules.dyn_rhoA[1, :], label='22_A', linewidth=2.)
-    axes[0].plot(molecules.time*time_factor, molecules.dyn_rhoA[2, :], label='33_A', linewidth=2.)
-    axes[0].plot(molecules.time*time_factor, molecules.dyn_rhoA[3, :], label='44_A', linewidth=2.)
-    # axes[0].plot(molecules.time*time_factor, molecules.dyn_rhoA[4, :], label='55_A', linewidth=2.)
-    axes[0].plot(molecules.time*time_factor, molecules.dyn_rhoA[4, :], 'k', label='Tr[$\\rho_A^2$]', linewidth=2.)
-    axes[0].legend(loc=2)
-
-    axes[1].plot(molecules.time*time_factor, molecules.dyn_rhoB[0, :], label='11_B', linewidth=2.)
-    axes[1].plot(molecules.time*time_factor, molecules.dyn_rhoB[1, :], label='22_B', linewidth=2.)
-    axes[1].plot(molecules.time*time_factor, molecules.dyn_rhoB[2, :], label='33_B', linewidth=2.)
-    axes[1].plot(molecules.time*time_factor, molecules.dyn_rhoB[3, :], label='44_B', linewidth=2.)
-    # axes[1].plot(molecules.time*time_factor, molecules.dyn_rhoB[4, :], label='55_B', linewidth=2.)
-    axes[1].plot(molecules.time*time_factor, molecules.dyn_rhoB[4, :], 'k', label='Tr[$\\rho_B^2$]', linewidth=2.)
-    axes[1].legend(loc=2)
-
-    render_ticks(axes[0])
-    render_ticks(axes[1])
-
-    print(molecules.rhoA.real, "\n")
-    print(molecules.rhoB.real, "\n")
+    # molecules.call_raman_control_func(params)
+    # end_control = time.time()
+    #
+    # print()
+    # print("Time to calculate optimal field: ", end_control - end_spectra)
+    # print()
+    # fig2, axes = plt.subplots(nrows=1, ncols=1)
+    # axes.plot(molecules.time*time_factor, molecules.field_t.real, 'r')
+    #
+    # fig1, axes = plt.subplots(nrows=2, ncols=1, sharex=True, sharey=True)
+    #
+    # axes[0].plot(molecules.time*time_factor, molecules.dyn_rhoA[0, :], label='11_A', linewidth=2.)
+    # axes[0].plot(molecules.time*time_factor, molecules.dyn_rhoA[1, :], label='22_A', linewidth=2.)
+    # axes[0].plot(molecules.time*time_factor, molecules.dyn_rhoA[2, :], label='33_A', linewidth=2.)
+    # axes[0].plot(molecules.time*time_factor, molecules.dyn_rhoA[3, :], label='44_A', linewidth=2.)
+    # # axes[0].plot(molecules.time*time_factor, molecules.dyn_rhoA[4, :], label='55_A', linewidth=2.)
+    # axes[0].plot(molecules.time*time_factor, molecules.dyn_rhoA[4, :], 'k', label='Tr[$\\rho_A^2$]', linewidth=2.)
+    # axes[0].legend(loc=2)
+    #
+    # axes[1].plot(molecules.time*time_factor, molecules.dyn_rhoB[0, :], label='11_B', linewidth=2.)
+    # axes[1].plot(molecules.time*time_factor, molecules.dyn_rhoB[1, :], label='22_B', linewidth=2.)
+    # axes[1].plot(molecules.time*time_factor, molecules.dyn_rhoB[2, :], label='33_B', linewidth=2.)
+    # axes[1].plot(molecules.time*time_factor, molecules.dyn_rhoB[3, :], label='44_B', linewidth=2.)
+    # # axes[1].plot(molecules.time*time_factor, molecules.dyn_rhoB[4, :], label='55_B', linewidth=2.)
+    # axes[1].plot(molecules.time*time_factor, molecules.dyn_rhoB[4, :], 'k', label='Tr[$\\rho_B^2$]', linewidth=2.)
+    # axes[1].legend(loc=2)
+    #
+    # render_ticks(axes[0])
+    # render_ticks(axes[1])
+    #
+    # print(molecules.rhoA.real, "\n")
+    # print(molecules.rhoB.real, "\n")
 
     plt.show()
 
