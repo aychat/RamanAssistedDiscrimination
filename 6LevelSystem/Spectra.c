@@ -411,7 +411,10 @@ void PropagateAbs(molecule* mol, parameters_abs_spectra* params, int indx)
 
     }
 
-    mol->abs_spectra[indx] = mol->rho[(nDIM-1)*nDIM + (nDIM-1)];
+    for(j=1; j<=4; j++)
+    {
+        mol->abs_spectra[indx] += mol->rho[(nDIM-j)*nDIM + (nDIM-j)];
+    }
     free(L_rho_func);
 }
 
@@ -453,7 +456,7 @@ void PropagateVib(molecule* mol, parameters_vib_spectra* params, int indx)
 
     }
 
-    for (j=1; j<nDIM-1; j++)
+    for (j=0; j<(int)(nDIM/2); j++)
     {
         mol->vib_spectra[indx] += mol->rho[j*nDIM + j];
     }
@@ -470,6 +473,7 @@ cmplx* CalculateSpectra(molecule* molA, molecule* molB, parameters_abs_spectra* 
         CalculateAbsSpectraField(abs_spec_params, i);
         PropagateAbs(molA, abs_spec_params, i);
         PropagateAbs(molB, abs_spec_params, i);
+
     }
 
 //    for(int i=0; i<vib_spec_params->freqDIM_vib; i++)

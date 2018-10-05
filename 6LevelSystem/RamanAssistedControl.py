@@ -178,17 +178,22 @@ if __name__ == '__main__':
     energy_factor = 1. / 27.211385
     time_factor = .02418884 / 1000
 
-    energies_A = np.array((0.000, 0.09832, 0.16304, 0.20209, 1.87855, 1.98687, 2.06159, 2.09064)) * energy_factor
-    energies_B = np.array((0.000, 0.09931, 0.15907, 0.19924, 1.77120, 1.88051, 1.97027, 1.99044)) * energy_factor
+    # energies_A = np.array((0.000, 0.09832, 0.16304, 0.20209, 1.87855, 1.98687, 2.06159, 2.09064)) * energy_factor
+    # energies_B = np.array((0.000, 0.09931, 0.15907, 0.19924, 1.77120, 1.88051, 1.97027, 1.99044)) * energy_factor
+
+    energies_A = np.array((0.000, 1.87855, 1.98687, 2.06159, 2.09064)) * energy_factor
+    energies_B = np.array((0.000, 1.77120, 1.88051, 1.97027, 1.99044)) * energy_factor
+
     N = len(energies_A)
+    N_S0 = 1
     rho_0 = np.zeros((N, N), dtype=np.complex)
     rho_0[0, 0] = 1. + 0j
 
     mu = 4.97738 * np.ones_like(rho_0)
     np.fill_diagonal(mu, 0j)
     population_decay = 2.418884e-8
-    electronic_dephasingA = .0036 * 2.418884e-4
-    electronic_dephasingB = .005 * 2.418884e-4
+    electronic_dephasingA = 2.7 * 2.418884e-4
+    electronic_dephasingB = 3. * 2.418884e-4
     vibrational_dephasing = 0.1 * 2.418884e-5
 
     gamma_decay = np.ones((N, N)) * population_decay
@@ -197,17 +202,17 @@ if __name__ == '__main__':
 
     gamma_pure_dephasingA = np.ones_like(gamma_decay) * vibrational_dephasing
     np.fill_diagonal(gamma_pure_dephasingA, 0.0)
-    for i in range(int(N/2)):
-        for j in range(1, int(N/2)+1):
-            gamma_pure_dephasingA[i, N-j] = electronic_dephasingA
-            gamma_pure_dephasingA[N-j, i] = electronic_dephasingA
+    for i in range(N_S0):
+        for j in range(N_S0, N):
+            gamma_pure_dephasingA[i, j] = electronic_dephasingA
+            gamma_pure_dephasingA[j, i] = electronic_dephasingA
 
     gamma_pure_dephasingB = np.ones_like(gamma_decay) * vibrational_dephasing
     np.fill_diagonal(gamma_pure_dephasingB, 0.0)
-    for i in range(int(N/2)):
-        for j in range(1, int(N/2)+1):
-            gamma_pure_dephasingB[i, N-j] = electronic_dephasingB
-            gamma_pure_dephasingB[N-j, i] = electronic_dephasingB
+    for i in range(N_S0):
+        for j in range(N_S0, N):
+            gamma_pure_dephasingB[i, j] = electronic_dephasingB
+            gamma_pure_dephasingB[j, i] = electronic_dephasingB
 
     np.set_printoptions(precision=2)
 
@@ -248,15 +253,15 @@ if __name__ == '__main__':
 
         MAX_EVAL=20,
 
-        timeDIM_spectra_abs=10000,
-        timeAMP_spectra_abs=100000,
+        timeDIM_spectra_abs=5000,
+        timeAMP_spectra_abs=50000,
 
         timeDIM_spectra_vib=10000,
         timeAMP_spectra_vib=1000000,
 
-        frequencyDIM_abs=500,
-        frequencyMIN_abs=1.8*energy_factor,
-        frequencyMAX_abs=2.1*energy_factor,
+        frequencyDIM_abs=250,
+        frequencyMIN_abs=1.5*energy_factor,
+        frequencyMAX_abs=2.5*energy_factor,
 
         frequencyDIM_vib=250,
         frequencyMIN_vib=0.07*energy_factor,
