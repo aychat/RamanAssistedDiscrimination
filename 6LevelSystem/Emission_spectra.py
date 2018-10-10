@@ -33,23 +33,25 @@ class RamanControl:
                 setattr(self, name, value)
 
         self.time = np.linspace(-params.timeAMP, params.timeAMP, params.timeDIM)
-        self.time_spectra_abs = np.linspace(-params.timeAMP_spectra_abs, params.timeAMP_spectra_abs, params.timeDIM_spectra_abs)
+        self.time_spectra_abs_ems = np.linspace(-params.timeAMP_spectra_abs_ems, params.timeAMP_spectra_abs_ems, params.timeDIM_spectra_abs_ems)
         self.time_spectra_vib = np.linspace(-params.timeAMP_spectra_vib, params.timeAMP_spectra_vib, params.timeDIM_spectra_vib)
 
         self.frequency_abs = 1./np.linspace(1./params.frequencyMAX_abs, 1./params.frequencyMIN_abs, params.frequencyDIM_abs)
+        self.frequency_ems = 1./np.linspace(1./params.frequencyMAX_ems, 1./params.frequencyMIN_ems, params.frequencyDIM_ems)
         self.frequency_vib = 1./np.linspace(1./params.frequencyMAX_vib, 1./params.frequencyMIN_vib, params.frequencyDIM_vib)
 
         self.field_t = np.empty(params.timeDIM, dtype=np.complex)
-        self.field_abs = np.empty(params.timeDIM_spectra_abs, dtype=np.complex)
+        self.field_abs = np.empty(params.timeDIM_spectra_abs_ems, dtype=np.complex)
+        self.field_ems = np.empty(params.timeDIM_spectra_abs_ems, dtype=np.complex)
         self.field_vib = np.empty(params.timeDIM_spectra_vib, dtype=np.complex)
 
         self.gamma_decay = np.ascontiguousarray(self.gamma_decay)
         self.gamma_pure_dephasingA = np.ascontiguousarray(self.gamma_pure_dephasingA)
         self.gamma_pure_dephasingB = np.ascontiguousarray(self.gamma_pure_dephasingB)
         self.mu = np.ascontiguousarray(self.mu)
-        self.rho_0 = np.ascontiguousarray(params.rho_0)
-        self.rhoA = np.ascontiguousarray(params.rho_0.copy())
-        self.rhoB = np.ascontiguousarray(params.rho_0.copy())
+        self.rho_0 = np.ascontiguousarray(params.rho_0_abs)
+        self.rhoA = np.ascontiguousarray(params.rho_0_abs.copy())
+        self.rhoB = np.ascontiguousarray(params.rho_0_abs.copy())
         self.energies_A = np.ascontiguousarray(self.energies_A)
         self.energies_B = np.ascontiguousarray(self.energies_B)
 
@@ -60,6 +62,8 @@ class RamanControl:
 
         self.abs_spectraA = np.ascontiguousarray(np.zeros(len(self.frequency_abs)))
         self.abs_spectraB = np.ascontiguousarray(np.zeros(len(self.frequency_abs)))
+        self.ems_spectraA = np.ascontiguousarray(np.zeros(len(self.frequency_ems)))
+        self.ems_spectraB = np.ascontiguousarray(np.zeros(len(self.frequency_ems)))
         self.vib_spectraA = np.ascontiguousarray(np.zeros(len(self.frequency_vib)))
         self.vib_spectraB = np.ascontiguousarray(np.zeros(len(self.frequency_vib)))
 
@@ -73,6 +77,7 @@ class RamanControl:
         molA.dyn_rho = self.dyn_rhoA.ctypes.data_as(POINTER(c_complex))
         molA.rho_0 = self.rho_0.ctypes.data_as(POINTER(c_complex))
         molA.abs_spectra = self.abs_spectraA.ctypes.data_as(POINTER(c_double))
+        molA.ems_spectra = self.ems_spectraA.ctypes.data_as(POINTER(c_double))
         molA.vib_spectra = self.vib_spectraA.ctypes.data_as(POINTER(c_double))
 
         molB.nDIM = len(self.energies_A)
@@ -84,6 +89,7 @@ class RamanControl:
         molB.dyn_rho = self.dyn_rhoB.ctypes.data_as(POINTER(c_complex))
         molB.rho_0 = self.rho_0.ctypes.data_as(POINTER(c_complex))
         molB.abs_spectra = self.abs_spectraB.ctypes.data_as(POINTER(c_double))
+        molB.ems_spectra = self.ems_spectraB.ctypes.data_as(POINTER(c_double))
         molB.vib_spectra = self.vib_spectraB.ctypes.data_as(POINTER(c_double))
 
     def create_parameters(self, func_params, params):
@@ -120,27 +126,28 @@ class RamanControl:
         func_params.MAX_EVAL = params.MAX_EVAL
 
     def create_parameters_abs_spectra(self, spectra_params, params):
-        spectra_params.time_spectra_abs = self.time_spectra_abs.ctypes.data_as(POINTER(c_double))
+        spectra_params.rho_0_abs = params.rho_0_abs.ctypes.data_as(POINTER(c_complex))
+        spectra_params.rho_0_ems = params.rho_0_ems.ctypes.data_as(POINTER(c_complex))
+        spectra_params.time_spectra_abs_ems = self.time_spectra_abs_ems.ctypes.data_as(POINTER(c_double))
         spectra_params.frequency_abs = self.frequency_abs.ctypes.data_as(POINTER(c_double))
-        width_abs = params.timeDIM_spectra_abs / params.width_abs
+        spectra_params.frequency_ems = self.frequency_ems.ctypes.data_as(POINTER(c_double))
 
-        spectra_params.A_abs = params.A_abs
-        spectra_params.width_abs = width_abs
+        spectra_params.A_abs_ems = params.A_abs_ems
 
         spectra_params.nDIM = len(self.energies_A)
         spectra_params.nEXC = self.N_exc
-        spectra_params.timeDIM_abs = len(self.time_spectra_abs)
+        spectra_params.timeDIM_abs_ems = len(self.time_spectra_abs_ems)
         spectra_params.freqDIM_abs = len(self.frequency_abs)
+        spectra_params.freqDIM_ems = len(self.frequency_ems)
 
         spectra_params.field_abs = self.field_abs.ctypes.data_as(POINTER(c_complex))
+        spectra_params.field_ems = self.field_ems.ctypes.data_as(POINTER(c_complex))
 
     def create_parameters_vib_spectra(self, spectra_params, params):
         spectra_params.time_spectra_vib = self.time_spectra_vib.ctypes.data_as(POINTER(c_double))
         spectra_params.frequency_vib = self.frequency_vib.ctypes.data_as(POINTER(c_double))
-        width_vib = params.timeDIM_spectra_vib / params.width_vib
 
         spectra_params.A_vib = params.A_vib
-        spectra_params.width_vib = width_vib
         spectra_params.w_R = params.vib_R
 
         spectra_params.nDIM = len(self.energies_A)
@@ -163,7 +170,7 @@ class RamanControl:
         molA = Molecule()
         molB = Molecule()
         self.create_molecules(molA, molB)
-        abs_spec_params = Parameters_AbsSpectra()
+        abs_spec_params = Parameters_AbsEmsSpectra()
         vib_spec_params = Parameters_VibSpectra()
         self.create_parameters_abs_spectra(abs_spec_params, params)
         self.create_parameters_vib_spectra(vib_spec_params, params)
@@ -174,6 +181,7 @@ class RamanControl:
 if __name__ == '__main__':
 
     import matplotlib.pyplot as plt
+    import matplotlib.gridspec as gridspec
     import time
     # from itertools import *
 
@@ -181,24 +189,23 @@ if __name__ == '__main__':
     energy_factor = 1. / 27.211385
     time_factor = .02418884 / 1000
 
-    # energies_A = np.array((0.000, 0.09832, 0.16304, 0.20209, 1.87855, 1.98687, 2.06159, 2.09064)) * energy_factor
-    # energies_B = np.array((0.000, 0.09931, 0.15907, 0.19924, 1.77120, 1.88051, 1.97027, 1.99044)) * energy_factor
-
-    energies_A = np.array((0.000, 1.87855, 1.88543, 1.90657, 1.94029, 1.98687, 2.06159)) * energy_factor
-    energies_B = np.array((0.000, 1.77120, 1.80543, 1.83657, 1.86029, 1.88051, 1.97027)) * energy_factor
+    energies_A = np.array((0.000, 0.08233, 0.09832, 0.16304, 0.20209, 1.7679256, 1.85871, 1.87855, 1.96783, 2.02991)) * energy_factor
+    energies_B = np.array((0.000, 0.08313, 0.09931, 0.15907, 0.19924, 1.77120, 1.80871, 1.82855, 1.86783, 1.92991)) * energy_factor
 
     N = len(energies_A)
-    N_vib = 1
+    N_vib = N - 5
     N_exc = N - N_vib
-    rho_0 = np.zeros((N, N), dtype=np.complex)
-    rho_0[0, 0] = 1. + 0j
+    rho_0_ems = np.zeros((N, N), dtype=np.complex)
+    rho_0_ems[N_vib, N_vib] = 1. + 0j
+    rho_0_abs = np.zeros((N, N), dtype=np.complex)
+    rho_0_abs[0, 0] = 1. + 0j
 
-    mu = 4.97738 * np.ones_like(rho_0)
+    mu = 4.97738 * np.ones_like(rho_0_abs)
     np.fill_diagonal(mu, 0j)
     population_decay = 2.418884e-8
-    electronic_dephasingA = 2.7 * 2.418884e-4
-    electronic_dephasingB = 4. * 2.418884e-4
-    vibrational_dephasing = 0.1 * 2.418884e-5
+    electronic_dephasingA = 1e-0*2.7 * 2.418884e-4
+    electronic_dephasingB = 1e-0*4.0 * 2.418884e-4
+    vibrational_dephasing = 1e-0*0.1 * 2.418884e-5
 
     gamma_decay = np.ones((N, N)) * population_decay
     np.fill_diagonal(gamma_decay, 0.0)
@@ -206,20 +213,37 @@ if __name__ == '__main__':
 
     gamma_pure_dephasingA = np.ones_like(gamma_decay) * vibrational_dephasing
     np.fill_diagonal(gamma_pure_dephasingA, 0.0)
-    for i in range(N_vib):
-        for j in range(N_vib, N):
-            if j == 1 or j == 2 or j == 3:
-                gamma_pure_dephasingA[i, j] = electronic_dephasingA*0.35
-                gamma_pure_dephasingA[j, i] = electronic_dephasingA*0.35
-            else:
-                gamma_pure_dephasingA[i, j] = electronic_dephasingA*0.95
-                gamma_pure_dephasingA[j, i] = electronic_dephasingA*0.95
+
+    gamma_pure_dephasingA[5, 4] = electronic_dephasingA*0.65
+    gamma_pure_dephasingA[4, 5] = electronic_dephasingA*0.65
+    gamma_pure_dephasingA[0, 9] = electronic_dephasingA*0.65
+    gamma_pure_dephasingA[9, 0] = electronic_dephasingA*0.65
+
+    gamma_pure_dephasingA[5, 3] = electronic_dephasingA*0.70
+    gamma_pure_dephasingA[3, 5] = electronic_dephasingA*0.70
+    gamma_pure_dephasingA[0, 8] = electronic_dephasingA*0.70
+    gamma_pure_dephasingA[8, 0] = electronic_dephasingA*0.70
+
+    gamma_pure_dephasingA[5, 2] = electronic_dephasingA*0.20
+    gamma_pure_dephasingA[2, 5] = electronic_dephasingA*0.20
+    gamma_pure_dephasingA[0, 7] = electronic_dephasingA*0.20
+    gamma_pure_dephasingA[7, 0] = electronic_dephasingA*0.20
+
+    gamma_pure_dephasingA[5, 1] = electronic_dephasingA*0.18
+    gamma_pure_dephasingA[1, 5] = electronic_dephasingA*0.18
+    gamma_pure_dephasingA[0, 6] = electronic_dephasingA*0.18
+    gamma_pure_dephasingA[6, 0] = electronic_dephasingA*0.18
+
+    gamma_pure_dephasingA[5, 0] = electronic_dephasingA*0.60
+    gamma_pure_dephasingA[0, 5] = electronic_dephasingA*0.60
+    mu[5, 0] *= 0.10
+    mu[0, 5] *= 0.10
 
     gamma_pure_dephasingB = np.ones_like(gamma_decay) * vibrational_dephasing
     np.fill_diagonal(gamma_pure_dephasingB, 0.0)
     for i in range(N_vib):
         for j in range(N_vib, N):
-            if j == 1 or j == 2 or j == 3:
+            if i == 1 or i == 2:
                 gamma_pure_dephasingB[i, j] = electronic_dephasingB*0.35
                 gamma_pure_dephasingB[j, i] = electronic_dephasingB*0.35
             else:
@@ -228,12 +252,8 @@ if __name__ == '__main__':
 
     np.set_printoptions(precision=2)
 
-    print(gamma_decay)
-    print(gamma_pure_dephasingA)
-
-    # lower_bounds = np.asarray([0.00020, 0.00020, 3.5, 20., 0.9*energies_A[1], 0.9*(energies_A[3] - energies_A[2]), 0.35*energy_factor])
-    # upper_bounds = np.asarray([0.00070, 0.00070, 10.0, 35.5, 1.1*energies_A[1], 1.0*(energies_A[3] - energies_A[2]), 0.45*energy_factor])
-    # guess = np.asarray([0.0005, 0.0005, 4., 25., energies_A[1], energies_A[3] - energies_A[2], 0.4*energy_factor])
+    # print(gamma_decay)
+    # print(gamma_pure_dephasingA)
 
     lower_bounds = np.asarray([0.000005, 3.5, 0.9 * energies_A[2], 0.9 * energies_A[3], 0.35 * energy_factor])
     upper_bounds = np.asarray([0.000045, 10.0, 1.1 * energies_A[2], 1.1 * energies_A[3], 0.5 * energy_factor])
@@ -257,7 +277,8 @@ if __name__ == '__main__':
         w_v1=energies_A[2],
         w_v2=energies_A[3],
         w_EE=(energies_A[4] - energies_A[1]),
-        rho_0=rho_0,
+        rho_0_abs=rho_0_abs,
+        rho_0_ems=rho_0_ems,
 
         lower_bounds=lower_bounds,
         upper_bounds=upper_bounds,
@@ -265,24 +286,26 @@ if __name__ == '__main__':
 
         MAX_EVAL=20,
 
-        timeDIM_spectra_abs=1000,
-        timeAMP_spectra_abs=10000,
+        timeDIM_spectra_abs_ems=1000,
+        timeAMP_spectra_abs_ems=2000,
 
         timeDIM_spectra_vib=10000,
         timeAMP_spectra_vib=1000000,
 
         frequencyDIM_abs=250,
         frequencyMIN_abs=1.5*energy_factor,
-        frequencyMAX_abs=2.5*energy_factor,
+        frequencyMAX_abs=2.7*energy_factor,
+
+        frequencyDIM_ems=250,
+        frequencyMIN_ems=1.2 * energy_factor,
+        frequencyMAX_ems=2.3 * energy_factor,
 
         frequencyDIM_vib=250,
         frequencyMIN_vib=0.07*energy_factor,
         frequencyMAX_vib=0.24*energy_factor,
 
-        A_abs=0.000003,
-        width_abs=.1,
+        A_abs_ems=0.000003,
         A_vib=0.0000005,
-        width_vib=.05,
 
         vib_R=0.5*energy_factor,
         N_vib=N_vib
@@ -311,35 +334,42 @@ if __name__ == '__main__':
     print("Time to calculate spectra: ", end_spectra - start)
     print()
 
-    fig, axes = plt.subplots(nrows=2, ncols=1)
-    axes[0].set_title(
-        'Absorption Spectra \n Calculation Field \n $\\tau_E$= {} fs'
-            .format(1e3*time_factor/electronic_dephasingA, 1e3*time_factor/electronic_dephasingB))
-    axes[0].plot(molecules.time_spectra_abs * time_factor, molecules.field_abs.real, 'k')
-    # axes[0].plot(molecules.time_spectra_abs * time_factor, params.A_abs * np.exp(
-    #     -molecules.time_spectra_abs ** 2 / (2. * (params.timeDIM_spectra_abs / params.width_abs) ** 2)), 'k--')
-    # axes[0].plot(molecules.time_spectra_abs * time_factor, params.A_abs * np.exp(
-    #     -molecules.time_spectra_abs ** 2 / (2. * (params.timeDIM_spectra_abs / params.width_abs) ** 2))
-    #                 * np.cos(molecules.time_spectra_abs * molecules.frequency_abs[0]), 'b')
-    # axes[0].plot(molecules.time_spectra_abs * time_factor, -params.A_abs * np.exp(
-    #     -molecules.time_spectra_abs ** 2 / (2. * (params.timeDIM_spectra_abs / params.width_abs) ** 2)), 'k--')
-    render_ticks(axes[0])
-    axes[0].set_xlabel("Time (in ps)")
+    fig, axes = plt.subplots(nrows=2, ncols=2)
+    gs1 = gridspec.GridSpec(2, 1)
+    gs2 = gridspec.GridSpec(2, 1)
+    for ax in axes[1, :]:
+        ax.remove()
+    for ax in axes[0, :]:
+        ax.remove()
+    axes[0, 0] = fig.add_subplot(gs1[0, 0:])
+    axes_spectra = fig.add_subplot(gs2[1, 0:])
 
-    axes[1].set_title("Absorption spectra")
-    axes[1].plot(1239.84 / (molecules.frequency_abs / energy_factor), molecules.abs_spectraA, 'b')
-    axes[1].plot(1239.84 / (molecules.frequency_abs / energy_factor), molecules.abs_spectraB, 'r')
-    axes[1].set_xlim(450., 850.)
+    axes[0, 0].set_title(
+        'Field for Spectra Calculation \n $\\tau_E$= {} fs'
+            .format(int(1e3*time_factor/electronic_dephasingA)))
+    axes[0, 0].plot(molecules.time_spectra_abs_ems * time_factor, molecules.field_abs.real, 'r')
+    render_ticks(axes[0, 0])
+    axes[0, 0].set_xlabel("Time (in ps)")
 
-    axes[0].set_xlabel("Time (in ps)")
-    axes[0].yaxis.tick_right()
-    axes[0].yaxis.set_label_position("right")
-    axes[1].yaxis.tick_right()
-    axes[1].yaxis.set_label_position("right")
+    axes[0, 0].plot(molecules.time_spectra_abs_ems * time_factor, molecules.field_ems.real, 'b')
+    axes[0, 0].set_xlabel("Time (in ps)")
 
-    axes[0].ticklabel_format(scilimits=(-2, 2))
-    axes[1].ticklabel_format(scilimits=(-3, 3))
-    render_ticks(axes[1])
+    axes_spectra.set_title("Absorption & Emission spectra")
+    axes_spectra.plot(1239.84 / (molecules.frequency_ems / energy_factor), molecules.ems_spectraA, 'b')
+    axes_spectra.plot(1239.84 / (molecules.frequency_abs / energy_factor), molecules.abs_spectraA, 'r')
+    # axes[1].set_xlim(450., 850.)
+
+    axes[0, 0].set_xlabel("Time (in ps)")
+    axes[0, 0].yaxis.tick_left()
+    axes[0, 0].yaxis.set_label_position("left")
+    axes[0, 1].yaxis.tick_right()
+    axes[0, 1].yaxis.set_label_position("right")
+    axes_spectra.yaxis.tick_right()
+    axes_spectra.yaxis.set_label_position("right")
+
+    axes[0, 0].ticklabel_format(scilimits=(-2, 2))
+    axes_spectra.ticklabel_format(scilimits=(-4, 4))
+    render_ticks(axes_spectra)
 
     fig.subplots_adjust(left=0.32, bottom=None, right=0.68, top=0.8, wspace=0.025, hspace=0.55)
 

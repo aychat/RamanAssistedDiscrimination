@@ -48,6 +48,7 @@ typedef struct molecule{
     cmplx* rho_0;
 
     double* abs_spectra;
+    double* ems_spectra;
     double* vib_spectra;
 } molecule;
 

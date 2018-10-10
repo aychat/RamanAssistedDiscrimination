@@ -53,22 +53,27 @@ class Parameters(Structure):
     ]
 
 
-class Parameters_AbsSpectra(Structure):
+class Parameters_AbsEmsSpectra(Structure):
     """
     Parameters structure ctypes
     """
     _fields_ = [
-        ('time_spectra_abs', POINTER(c_double)),
+        ('rho_0_abs', POINTER(c_complex)),
+        ('rho_0_ems', POINTER(c_complex)),
+        ('time_spectra_abs_ems', POINTER(c_double)),
         ('frequency_abs', POINTER(c_double)),
+        ('frequency_ems', POINTER(c_double)),
 
-        ('A_abs', c_double),
-        ('width_abs', c_double),
+        ('A_abs_ems', c_double),
 
         ('nDIM', c_int),
-        ('timeDIM_abs', c_int),
+        ('nEXC', c_int),
+        ('timeDIM_abs_ems', c_int),
         ('freqDIM_abs', c_int),
+        ('freqDIM_ems', c_int),
 
-        ('field_abs', POINTER(c_complex))
+        ('field_abs', POINTER(c_complex)),
+        ('field_ems', POINTER(c_complex))
     ]
 
 
@@ -85,6 +90,7 @@ class Parameters_VibSpectra(Structure):
         ('w_R', c_double),
 
         ('nDIM', c_int),
+        ('nEXC', c_int),
         ('timeDIM_vib', c_int),
         ('freqDIM_vib', c_int),
 
@@ -106,6 +112,7 @@ class Molecule(Structure):
         ('dyn_rho', POINTER(c_complex)),
         ('rho_0', POINTER(c_complex)),
         ('abs_spectra', POINTER(c_double)),
+        ('ems_spectra', POINTER(c_double)),
         ('vib_spectra', POINTER(c_double)),
     ]
 
@@ -163,7 +170,7 @@ except OSError:
 lib1.CalculateSpectra.argtypes = (
     POINTER(Molecule),                  # molecule molA
     POINTER(Molecule),                  # molecule molB
-    POINTER(Parameters_AbsSpectra),     # parameter field_params
+    POINTER(Parameters_AbsEmsSpectra),     # parameter field_params
     POINTER(Parameters_VibSpectra),     # parameter field_params
 )
 lib1.CalculateSpectra.restype = POINTER(c_complex)

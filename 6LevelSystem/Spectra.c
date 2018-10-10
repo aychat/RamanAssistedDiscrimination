@@ -6,26 +6,31 @@
 
 typedef double complex cmplx;
 
-typedef struct parameters_abs_spectra{
-    double* time_spectra_abs;
-    double* frequency_abs;
+typedef struct parameters_abs_ems_spectra{
 
-    double A_abs;
-    double width_abs;
+    cmplx* rho_0_abs;
+    cmplx* rho_0_ems;
+    double* time_spectra_abs_ems;
+    double* frequency_abs;
+    double* frequency_ems;
+
+    double A_abs_ems;
 
     int nDIM;
-    int timeDIM_abs;
+    int nEXC;
+    int timeDIM_abs_ems;
     int freqDIM_abs;
+    int freqDIM_ems;
 
     cmplx* field_abs;
-} parameters_abs_spectra;
+    cmplx* field_ems;
+} parameters_abs_ems_spectra;
 
 typedef struct parameters_vib_spectra{
     double* time_spectra_vib;
     double* frequency_vib;
 
     double A_vib;
-    double width_vib;
     double w_R;
 
     int nDIM;
@@ -46,6 +51,7 @@ typedef struct molecule{
     cmplx* dyn_rho;
     cmplx* rho_0;
     double* abs_spectra;
+    double* ems_spectra;
     double* vib_spectra;
 } molecule;
 
@@ -275,25 +281,41 @@ double integrate_Simpsons(double *f, double Tmin, double Tmax, int Tsteps)
 //                                                                                                                    //
 //====================================================================================================================//
 
-void CalculateAbsSpectraField(parameters_abs_spectra* params, int k)
+void CalculateAbsSpectraField(parameters_abs_ems_spectra* params, int k)
 //----------------------------------------------------//
 //   RETURNS THE ENTIRE FIELD AS A FUNCTION OF TIME   //
 //----------------------------------------------------//
 {
     int i;
     int nDIM = params->nDIM;
-    int timeDIM_abs = params->timeDIM_abs;
+    int timeDIM = params->timeDIM_abs_ems;
 
-    double* t = params->time_spectra_abs;
+    double* t = params->time_spectra_abs_ems;
 
-    double A_abs = params->A_abs;
-    double width_abs = params->width_abs;
+    double A = params->A_abs_ems;
 
-
-    for(i=0; i<timeDIM_abs; i++)
+    for(i=0; i<timeDIM; i++)
     {
-//        params->field_abs[i] = A_abs * exp(-pow(t[i], 2) / (2. * pow(width_abs, 2))) * cos(params->frequency_abs[k] * t[i]);
-        params->field_abs[i] = A_abs * pow(cos(M_PI*t[i]/(fabs(2*params->time_spectra_abs[0]))), 2) * cos(params->frequency_abs[k] * t[i]);
+        params->field_abs[i] = A * pow(cos(M_PI*t[i]/(fabs(2*t[0]))), 2) * cos(params->frequency_abs[k] * t[i]);
+    }
+}
+
+void CalculateEmsSpectraField(parameters_abs_ems_spectra* params, int k)
+//----------------------------------------------------//
+//   RETURNS THE ENTIRE FIELD AS A FUNCTION OF TIME   //
+//----------------------------------------------------//
+{
+    int i;
+    int nDIM = params->nDIM;
+    int timeDIM = params->timeDIM_abs_ems;
+
+    double* t = params->time_spectra_abs_ems;
+
+    double A = params->A_abs_ems;
+
+    for(i=0; i<timeDIM; i++)
+    {
+        params->field_ems[i] = A * pow(cos(M_PI*t[i]/(fabs(2*t[0]))), 2) * cos(params->frequency_ems[k] * t[i]);
     }
 }
 
@@ -310,14 +332,12 @@ void CalculateVibSpectraField(parameters_vib_spectra* params, int k)
     double* t = params->time_spectra_vib;
 
     double A_vib = params->A_vib;
-    double width_vib = params->width_vib;
     double w_R = params->w_R;
 
 
     for(i=0; i<timeDIM_vib; i++)
     {
-        params->field_vib[i] = A_vib * pow(cos(M_PI*t[i]/(fabs(2*params->time_spectra_vib[0]))), 2) * (cos((w_R + params->frequency_vib[k]) * t[i]) + cos(w_R * t[i]));
-//        params->field_vib[i] = A_vib * exp(-pow(t[i], 2) / (2. * pow(width_vib, 2))) * (cos((params->frequency_vib[k]) * t[i]));
+        params->field_vib[i] = A_vib * pow(cos(M_PI*t[i]/(fabs(2*t[0]))), 2) * (cos((w_R + params->frequency_vib[k]) * t[i]) + cos(w_R * t[i]));
     }
 }
 
@@ -374,7 +394,7 @@ void L_operate(cmplx* Qmat, const cmplx field_ti, molecule* mol)
 }
 
 
-void PropagateAbs(molecule* mol, parameters_abs_spectra* params, int indx)
+void PropagateAbs(molecule* mol, parameters_abs_ems_spectra* params, int indx)
 //----------------------------------------------------------------------//
 //    GETTING rho(T)_{k=[3,4]} FROM rho(0) USING PROPAGATE FUNCTION     //
 //----------------------------------------------------------------------//
@@ -383,10 +403,10 @@ void PropagateAbs(molecule* mol, parameters_abs_spectra* params, int indx)
     int i, j, k;
     int tau_index, t_index;
     int nDIM = params->nDIM;
-    int timeDIM_abs = params->timeDIM_abs;
+    int timeDIM_abs_ems = params->timeDIM_abs_ems;
 
     cmplx *rho_0 = mol->rho_0;
-    double *time = params->time_spectra_abs;
+    double *time = params->time_spectra_abs_ems;
 
     cmplx* field = params->field_abs;
 
@@ -396,7 +416,7 @@ void PropagateAbs(molecule* mol, parameters_abs_spectra* params, int indx)
     copy_mat(rho_0, L_rho_func, nDIM);
     copy_mat(rho_0, mol->rho, nDIM);
 
-    for(t_index=0; t_index<timeDIM_abs; t_index++)
+    for(t_index=0; t_index<timeDIM_abs_ems; t_index++)
     {
         k=1;
         do
@@ -411,12 +431,57 @@ void PropagateAbs(molecule* mol, parameters_abs_spectra* params, int indx)
 
     }
 
-    for(j=1; j<=4; j++)
+    for(j=1; j<=params->nEXC; j++)
     {
         mol->abs_spectra[indx] += mol->rho[(nDIM-j)*nDIM + (nDIM-j)];
     }
     free(L_rho_func);
 }
+
+void PropagateEms(molecule* mol, parameters_abs_ems_spectra* params, int indx)
+//----------------------------------------------------------------------//
+//    GETTING rho(T)_{k=[3,4]} FROM rho(0) USING PROPAGATE FUNCTION     //
+//----------------------------------------------------------------------//
+{
+
+    int i, j, k;
+    int tau_index, t_index;
+    int nDIM = params->nDIM;
+    int timeDIM_abs_ems = params->timeDIM_abs_ems;
+
+    cmplx *rho_0 = params->rho_0_ems;
+    double *time = params->time_spectra_abs_ems;
+
+    cmplx* field = params->field_ems;
+
+    double dt = time[1] - time[0];
+
+    cmplx* L_rho_func = (cmplx*)calloc(nDIM * nDIM, sizeof(cmplx));
+    copy_mat(rho_0, L_rho_func, nDIM);
+    copy_mat(rho_0, mol->rho, nDIM);
+
+    for(t_index=0; t_index<timeDIM_abs_ems; t_index++)
+    {
+        k=1;
+        do
+        {
+            L_operate(L_rho_func, field[t_index], mol);
+            scale_mat(L_rho_func, dt/k, nDIM);
+            add_mat(L_rho_func, mol->rho, nDIM);
+            k+=1;
+        }while(complex_max_element(L_rho_func, nDIM) > 1.0E-8);
+
+        copy_mat(mol->rho, L_rho_func, nDIM);
+
+    }
+
+    for(j=0; j<(nDIM - params->nEXC); j++)
+    {
+        mol->ems_spectra[indx] += mol->rho[j*nDIM + j];
+    }
+    free(L_rho_func);
+}
+
 
 
 void PropagateVib(molecule* mol, parameters_vib_spectra* params, int indx)
@@ -463,17 +528,25 @@ void PropagateVib(molecule* mol, parameters_vib_spectra* params, int indx)
     free(L_rho_func);
 }
 
-cmplx* CalculateSpectra(molecule* molA, molecule* molB, parameters_abs_spectra* abs_spec_params, parameters_vib_spectra* vib_spec_params)
+cmplx* CalculateSpectra(molecule* molA, molecule* molB, parameters_abs_ems_spectra* abs_ems_spec_params, parameters_vib_spectra* vib_spec_params)
 //------------------------------------------------------------//
 //    GETTING rho(T) FROM rho(0) USING PROPAGATE FUNCTION     //
 //------------------------------------------------------------//
 {
-    for(int i=0; i<abs_spec_params->freqDIM_abs; i++)
+    for(int i=0; i<abs_ems_spec_params->freqDIM_ems; i++)
     {
-        CalculateAbsSpectraField(abs_spec_params, i);
-        PropagateAbs(molA, abs_spec_params, i);
-        PropagateAbs(molB, abs_spec_params, i);
+        CalculateEmsSpectraField(abs_ems_spec_params, i);
 
+        PropagateEms(molA, abs_ems_spec_params, i);
+//        PropagateEms(molB, abs_ems_spec_params, i);
+    }
+
+    copy_mat(molA->rho_0, molA->rho, abs_ems_spec_params->nDIM);
+    for(int i=0; i<abs_ems_spec_params->freqDIM_abs; i++)
+    {
+        CalculateAbsSpectraField(abs_ems_spec_params, i);
+        PropagateAbs(molA, abs_ems_spec_params, i);
+//        PropagateAbs(molB, abs_ems_spec_params, i);
     }
 
 //    for(int i=0; i<vib_spec_params->freqDIM_vib; i++)
