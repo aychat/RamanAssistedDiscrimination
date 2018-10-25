@@ -86,11 +86,9 @@ class Parameters_VibSpectra(Structure):
         ('frequency_vib', POINTER(c_double)),
 
         ('A_vib', c_double),
-        ('width_vib', c_double),
         ('w_R', c_double),
 
         ('nDIM', c_int),
-        ('nEXC', c_int),
         ('timeDIM_vib', c_int),
         ('freqDIM_vib', c_int),
 

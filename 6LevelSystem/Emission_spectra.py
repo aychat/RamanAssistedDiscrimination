@@ -151,11 +151,12 @@ class RamanControl:
         spectra_params.w_R = params.vib_R
 
         spectra_params.nDIM = len(self.energies_A)
-        spectra_params.nEXC = self.N_exc
         spectra_params.timeDIM_vib = len(self.time_spectra_vib)
         spectra_params.freqDIM_vib = len(self.frequency_vib)
 
         spectra_params.field_vib = self.field_vib.ctypes.data_as(POINTER(c_complex))
+
+        print(self.field_vib.shape)
 
     def call_raman_control_func(self, params):
         molA = Molecule()
@@ -190,7 +191,7 @@ if __name__ == '__main__':
     time_factor = .02418884 / 1000
 
     energies_A = np.array((0.000, 0.08233, 0.09832, 0.16304, 0.20209, 1.7679256, 1.85871, 1.87855, 1.96783, 2.02991)) * energy_factor
-    energies_B = np.array((0.000, 0.08313, 0.09931, 0.15907, 0.19924, 1.77120, 1.80871, 1.82855, 1.86783, 1.92991)) * energy_factor
+    energies_B = np.array((0.000, 0.08313, 0.09931, 0.15907, 0.19924, 1.7712000, 1.80871, 1.82855, 1.86783, 1.92991)) * energy_factor
 
     N = len(energies_A)
     N_vib = N - 5
@@ -203,9 +204,9 @@ if __name__ == '__main__':
     mu = 4.97738 * np.ones_like(rho_0_abs)
     np.fill_diagonal(mu, 0j)
     population_decay = 2.418884e-8
-    electronic_dephasingA = 1e-0*2.7 * 2.418884e-4
-    electronic_dephasingB = 1e-0*4.0 * 2.418884e-4
-    vibrational_dephasing = 1e-0*0.1 * 2.418884e-5
+    electronic_dephasingA = 2.7 * 2.418884e-4
+    electronic_dephasingB = 4.0 * 2.418884e-4
+    vibrational_dephasing = 0.05 * 2.418884e-5
 
     gamma_decay = np.ones((N, N)) * population_decay
     np.fill_diagonal(gamma_decay, 0.0)
@@ -213,6 +214,11 @@ if __name__ == '__main__':
 
     gamma_pure_dephasingA = np.ones_like(gamma_decay) * vibrational_dephasing
     np.fill_diagonal(gamma_pure_dephasingA, 0.0)
+
+    for i in range(N_vib):
+        for j in range(N_vib, N):
+            gamma_pure_dephasingA[i, j] = electronic_dephasingA
+            gamma_pure_dephasingA[j, i] = electronic_dephasingA
 
     gamma_pure_dephasingA[5, 4] = electronic_dephasingA*0.65
     gamma_pure_dephasingA[4, 5] = electronic_dephasingA*0.65
@@ -253,7 +259,7 @@ if __name__ == '__main__':
     np.set_printoptions(precision=2)
 
     # print(gamma_decay)
-    # print(gamma_pure_dephasingA)
+    print(gamma_pure_dephasingA)
 
     lower_bounds = np.asarray([0.000005, 3.5, 0.9 * energies_A[2], 0.9 * energies_A[3], 0.35 * energy_factor])
     upper_bounds = np.asarray([0.000045, 10.0, 1.1 * energies_A[2], 1.1 * energies_A[3], 0.5 * energy_factor])
@@ -290,7 +296,7 @@ if __name__ == '__main__':
         timeAMP_spectra_abs_ems=2000,
 
         timeDIM_spectra_vib=10000,
-        timeAMP_spectra_vib=1000000,
+        timeAMP_spectra_vib=200000,
 
         frequencyDIM_abs=250,
         frequencyMIN_abs=1.5*energy_factor,
@@ -301,11 +307,11 @@ if __name__ == '__main__':
         frequencyMAX_ems=2.3 * energy_factor,
 
         frequencyDIM_vib=250,
-        frequencyMIN_vib=0.07*energy_factor,
+        frequencyMIN_vib=0.05*energy_factor,
         frequencyMAX_vib=0.24*energy_factor,
 
         A_abs_ems=0.000003,
-        A_vib=0.0000005,
+        A_vib=0.000005,
 
         vib_R=0.5*energy_factor,
         N_vib=N_vib
@@ -334,42 +340,51 @@ if __name__ == '__main__':
     print("Time to calculate spectra: ", end_spectra - start)
     print()
 
-    fig, axes = plt.subplots(nrows=2, ncols=2)
-    gs1 = gridspec.GridSpec(2, 1)
-    gs2 = gridspec.GridSpec(2, 1)
-    for ax in axes[1, :]:
-        ax.remove()
-    for ax in axes[0, :]:
-        ax.remove()
-    axes[0, 0] = fig.add_subplot(gs1[0, 0:])
-    axes_spectra = fig.add_subplot(gs2[1, 0:])
+    fig, axes = plt.subplots(nrows=4, ncols=1)
+    # gs1 = gridspec.GridSpec(2, 1)
+    # gs2 = gridspec.GridSpec(2, 1)
+    # for ax in axes[1, :]:
+    #     ax.remove()
+    # for ax in axes[0, :]:
+    #     ax.remove()
+    # axes[0, 0] = fig.add_subplot(gs1[0, 0:])
+    # axes_spectra = fig.add_subplot(gs2[1, 0:])
 
-    axes[0, 0].set_title(
-        'Field for Spectra Calculation \n $\\tau_E$= {} fs'
+    axes[0].set_title(
+        'Field for Electronic Spectra \n $\\tau_E$= {} fs'
             .format(int(1e3*time_factor/electronic_dephasingA)))
-    axes[0, 0].plot(molecules.time_spectra_abs_ems * time_factor, molecules.field_abs.real, 'r')
-    render_ticks(axes[0, 0])
-    axes[0, 0].set_xlabel("Time (in ps)")
+    axes[0].plot(molecules.time_spectra_abs_ems * time_factor, molecules.field_abs.real, 'r')
+    axes[0].plot(molecules.time_spectra_abs_ems * time_factor, molecules.field_ems.real, 'b')
+    render_ticks(axes[0])
+    axes[0].set_xlabel("Time (in ps)")
 
-    axes[0, 0].plot(molecules.time_spectra_abs_ems * time_factor, molecules.field_ems.real, 'b')
-    axes[0, 0].set_xlabel("Time (in ps)")
+    axes[2].set_title(
+        'Field for Vibrational Spectra \n $\\tau_E$= {} fs'
+            .format(int(1e3 * time_factor / electronic_dephasingA)))
+    axes[2].plot(molecules.time_spectra_vib * time_factor, molecules.field_vib.real, 'k')
+    render_ticks(axes[2])
+    axes[2].set_xlabel("Time (in ps)")
 
-    axes_spectra.set_title("Absorption & Emission spectra")
-    axes_spectra.plot(1239.84 / (molecules.frequency_ems / energy_factor), molecules.ems_spectraA, 'b')
-    axes_spectra.plot(1239.84 / (molecules.frequency_abs / energy_factor), molecules.abs_spectraA, 'r')
-    # axes[1].set_xlim(450., 850.)
+    axes[1].set_title("Absorption & Emission spectra")
+    axes[1].plot(1239.84 / (molecules.frequency_abs / energy_factor), molecules.abs_spectraA, 'r')
+    axes[1].plot(1239.84 / (molecules.frequency_ems / energy_factor), molecules.ems_spectraA, 'b')
+    axes[1].set_xlim(450., 850.)
 
-    axes[0, 0].set_xlabel("Time (in ps)")
-    axes[0, 0].yaxis.tick_left()
-    axes[0, 0].yaxis.set_label_position("left")
-    axes[0, 1].yaxis.tick_right()
-    axes[0, 1].yaxis.set_label_position("right")
-    axes_spectra.yaxis.tick_right()
-    axes_spectra.yaxis.set_label_position("right")
+    axes[3].set_title("Vibrational spectra")
+    axes[3].plot((molecules.frequency_vib / energy_factor), molecules.vib_spectraA, 'k')
 
-    axes[0, 0].ticklabel_format(scilimits=(-2, 2))
-    axes_spectra.ticklabel_format(scilimits=(-4, 4))
-    render_ticks(axes_spectra)
+    axes[0].set_xlabel("Time (in ps)")
+    axes[0].yaxis.tick_left()
+    axes[0].yaxis.set_label_position("left")
+    axes[1].yaxis.tick_right()
+    axes[1].yaxis.set_label_position("right")
+    axes[2].yaxis.tick_right()
+    axes[2].yaxis.set_label_position("right")
+
+    axes[0].ticklabel_format(scilimits=(-2, 2))
+    axes[2].ticklabel_format(scilimits=(-4, 4))
+    render_ticks(axes[1])
+    render_ticks(axes[3])
 
     fig.subplots_adjust(left=0.32, bottom=None, right=0.68, top=0.8, wspace=0.025, hspace=0.55)
 
