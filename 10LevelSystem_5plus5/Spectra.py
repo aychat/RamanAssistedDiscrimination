@@ -65,6 +65,9 @@ class RamanControl:
         self.Raman_spectraA = np.ascontiguousarray(np.zeros(len(self.frequency_VR)))
         self.Raman_spectraB = np.ascontiguousarray(np.zeros(len(self.frequency_VR)))
 
+        self.dyn_rho_A = np.ascontiguousarray(np.zeros((N, params.timeDIM_VR)), dtype=np.complex)
+        self.dyn_rho_B = np.ascontiguousarray(np.zeros((N, params.timeDIM_VR)), dtype=np.complex)
+
     def create_molecules(self, molA, molB):
         molA.nDIM = len(self.energies_A)
         molA.energies = self.energies_A.ctypes.data_as(POINTER(c_double))
@@ -77,6 +80,7 @@ class RamanControl:
         molA.ems_spectra = self.ems_spectraA.ctypes.data_as(POINTER(c_double))
         molA.vib_spectra = self.vib_spectraA.ctypes.data_as(POINTER(c_double))
         molA.Raman_spectra = self.Raman_spectraA.ctypes.data_as(POINTER(c_double))
+        molA.dyn_rho = self.dyn_rho_A.ctypes.data_as(POINTER(c_complex))
 
         molB.nDIM = len(self.energies_B)
         molB.energies = self.energies_B.ctypes.data_as(POINTER(c_double))
@@ -89,6 +93,7 @@ class RamanControl:
         molB.ems_spectra = self.ems_spectraB.ctypes.data_as(POINTER(c_double))
         molB.vib_spectra = self.vib_spectraB.ctypes.data_as(POINTER(c_double))
         molB.Raman_spectra = self.Raman_spectraB.ctypes.data_as(POINTER(c_double))
+        molB.dyn_rho = self.dyn_rho_B.ctypes.data_as(POINTER(c_complex))
 
     def create_parameters_spectra(self, spectra_params, params):
         spectra_params.rho_0_A = params.rho_0_A.ctypes.data_as(POINTER(c_complex))
@@ -117,6 +122,12 @@ class RamanControl:
         spectra_params.field_E = self.field_E.ctypes.data_as(POINTER(c_complex))
         spectra_params.field_V = self.field_V.ctypes.data_as(POINTER(c_complex))
         spectra_params.field_R = self.field_R.ctypes.data_as(POINTER(c_complex))
+
+        spectra_params.omega_v1 = params.omega_v1
+        spectra_params.omega_v2 = params.omega_v2
+        spectra_params.omega_v3 = params.omega_v3
+        spectra_params.omega_v4 = params.omega_v4
+        spectra_params.omega_e1 = params.omega_e1
 
     def calculate_spectra(self, params):
         molA = Molecule()
@@ -153,7 +164,7 @@ if __name__ == '__main__':
     population_decay = 2.418884e-8
     electronic_dephasingA = 2.7 * 2.418884e-4
     electronic_dephasingB = 5.0 * 2.418884e-4
-    vibrational_dephasing = 0.2 * 2.418884e-5
+    vibrational_dephasing = 0.1 * 2.418884e-5
 
     gamma_decay = np.ones((N, N)) * population_decay
     np.fill_diagonal(gamma_decay, 0.0)
@@ -167,28 +178,28 @@ if __name__ == '__main__':
             gamma_pure_dephasingA[i, j] = electronic_dephasingA
             gamma_pure_dephasingA[j, i] = electronic_dephasingA
 
-    gamma_pure_dephasingA[5, 4] = electronic_dephasingA*0.65
-    gamma_pure_dephasingA[4, 5] = electronic_dephasingA*0.65
-    gamma_pure_dephasingA[0, 9] = electronic_dephasingA*0.65
-    gamma_pure_dephasingA[9, 0] = electronic_dephasingA*0.65
+    gamma_pure_dephasingA[5, 4] = electronic_dephasingA * 0.65
+    gamma_pure_dephasingA[4, 5] = electronic_dephasingA * 0.65
+    gamma_pure_dephasingA[0, 9] = electronic_dephasingA * 0.65
+    gamma_pure_dephasingA[9, 0] = electronic_dephasingA * 0.65
 
-    gamma_pure_dephasingA[5, 3] = electronic_dephasingA*0.70
-    gamma_pure_dephasingA[3, 5] = electronic_dephasingA*0.70
-    gamma_pure_dephasingA[0, 8] = electronic_dephasingA*0.70
-    gamma_pure_dephasingA[8, 0] = electronic_dephasingA*0.70
+    gamma_pure_dephasingA[5, 3] = electronic_dephasingA * 0.70
+    gamma_pure_dephasingA[3, 5] = electronic_dephasingA * 0.70
+    gamma_pure_dephasingA[0, 8] = electronic_dephasingA * 0.70
+    gamma_pure_dephasingA[8, 0] = electronic_dephasingA * 0.70
 
-    gamma_pure_dephasingA[5, 2] = electronic_dephasingA*0.20
-    gamma_pure_dephasingA[2, 5] = electronic_dephasingA*0.20
-    gamma_pure_dephasingA[0, 7] = electronic_dephasingA*0.20
-    gamma_pure_dephasingA[7, 0] = electronic_dephasingA*0.20
+    gamma_pure_dephasingA[5, 2] = electronic_dephasingA * 0.20
+    gamma_pure_dephasingA[2, 5] = electronic_dephasingA * 0.20
+    gamma_pure_dephasingA[0, 7] = electronic_dephasingA * 0.20
+    gamma_pure_dephasingA[7, 0] = electronic_dephasingA * 0.20
 
-    gamma_pure_dephasingA[5, 1] = electronic_dephasingA*0.18
-    gamma_pure_dephasingA[1, 5] = electronic_dephasingA*0.18
-    gamma_pure_dephasingA[0, 6] = electronic_dephasingA*0.18
-    gamma_pure_dephasingA[6, 0] = electronic_dephasingA*0.18
+    gamma_pure_dephasingA[5, 1] = electronic_dephasingA * 0.18
+    gamma_pure_dephasingA[1, 5] = electronic_dephasingA * 0.18
+    gamma_pure_dephasingA[0, 6] = electronic_dephasingA * 0.18
+    gamma_pure_dephasingA[6, 0] = electronic_dephasingA * 0.18
 
-    gamma_pure_dephasingA[5, 0] = electronic_dephasingA*0.60
-    gamma_pure_dephasingA[0, 5] = electronic_dephasingA*0.60
+    gamma_pure_dephasingA[5, 0] = electronic_dephasingA * 0.60
+    gamma_pure_dephasingA[0, 5] = electronic_dephasingA * 0.60
     mu[5, 0] *= 0.10
     mu[0, 5] *= 0.10
 
@@ -246,14 +257,21 @@ if __name__ == '__main__':
         frequencyMAX_E=2.3 * energy_factor,
 
         frequencyDIM_VR=250,
-        frequencyMIN_VR=0.05*energy_factor,
-        frequencyMAX_VR=0.24*energy_factor,
+        frequencyMIN_VR=0.075*energy_factor,
+        frequencyMAX_VR=0.21*energy_factor,
 
         field_amp_AE=0.000003,
-        field_amp_VR=0.000050,
+        field_amp_VR=0.000014,
 
         omega_R=0.5*energy_factor,
-        nEXC=N_exc
+        nEXC=N_exc,
+
+        omega_v1=energies_A[1],
+        omega_v2=energies_A[2],
+        omega_v3=energies_A[3],
+        omega_v4=energies_A[4],
+
+        omega_e1=energies_A[5]-energies_A[4]
     )
 
     FourLevels = dict(
@@ -274,10 +292,55 @@ if __name__ == '__main__':
 
 
     molecules = RamanControl(params, **FourLevels)
+
+    start = time.time()
     molecules.calculate_spectra(params)
 
-    fig, axes = plt.subplots(nrows=2, ncols=1)
-    axes[0].plot(molecules.time_AE, molecules.field_A.real)
-    axes[1].plot(energy_factor*1239.84 / molecules.frequency_A, molecules.abs_spectraA)
-    axes[1].plot(energy_factor*1239.84 / molecules.frequency_A, molecules.abs_spectraB)
+    print(time.time() - start)
+
+    # fig, axes = plt.subplots(nrows=3, ncols=1)
+    # axes[0].plot(molecules.time_VR, molecules.field_R.real)
+    # axes[0].plot(molecules.time_AE, molecules.field_A.real)
+    # axes[1].plot(energy_factor * 1239.84 / molecules.frequency_A, molecules.abs_spectraA)
+    # axes[1].plot(energy_factor * 1239.84 / molecules.frequency_A, molecules.abs_spectraB)
+    # axes[2].plot(energy_factor * 1239.84 / molecules.frequency_VR, molecules.Raman_spectraA)
+    # axes[2].plot(energy_factor * 1239.84 / molecules.frequency_VR, molecules.Raman_spectraB)
+    # plt.show()
+
+    fig, axes = plt.subplots(nrows=3, ncols=1)
+    axes[0].plot(molecules.time_VR, molecules.field_R.real)
+
+    axes[1].plot(molecules.time_VR, molecules.dyn_rho_A[0], label='g1')
+    axes[1].plot(molecules.time_VR, molecules.dyn_rho_A[1], label='g2')
+    axes[1].plot(molecules.time_VR, molecules.dyn_rho_A[2], label='g3')
+    axes[1].plot(molecules.time_VR, molecules.dyn_rho_A[3], label='g4')
+    axes[1].plot(molecules.time_VR, molecules.dyn_rho_A[4], label='g5')
+    axes[1].plot(molecules.time_VR, molecules.dyn_rho_A[5])
+    axes[1].plot(molecules.time_VR, molecules.dyn_rho_A[6])
+    axes[1].plot(molecules.time_VR, molecules.dyn_rho_A[7])
+    axes[1].plot(molecules.time_VR, molecules.dyn_rho_A[8])
+    axes[1].plot(molecules.time_VR, molecules.dyn_rho_A[9])
+
+    axes[2].plot(molecules.time_VR, molecules.dyn_rho_B[0], label='g1')
+    axes[2].plot(molecules.time_VR, molecules.dyn_rho_B[1], label='g2')
+    axes[2].plot(molecules.time_VR, molecules.dyn_rho_B[2], label='g3')
+    axes[2].plot(molecules.time_VR, molecules.dyn_rho_B[3], label='g4')
+    axes[2].plot(molecules.time_VR, molecules.dyn_rho_B[4], label='g5')
+    axes[2].plot(molecules.time_VR, molecules.dyn_rho_B[5])
+    axes[2].plot(molecules.time_VR, molecules.dyn_rho_B[6])
+    axes[2].plot(molecules.time_VR, molecules.dyn_rho_B[7])
+    axes[2].plot(molecules.time_VR, molecules.dyn_rho_B[8])
+    axes[2].plot(molecules.time_VR, molecules.dyn_rho_B[9])
+
+    render_ticks(axes[0])
+    render_ticks(axes[1])
+    render_ticks(axes[2])
+
+    axes[1].legend()
+    axes[2].legend()
+
+    print(molecules.rhoA.diagonal())
+    print()
+    print(molecules.rhoB.diagonal())
+
     plt.show()

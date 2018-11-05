@@ -35,6 +35,14 @@ typedef struct parameters_spectra{
     cmplx* field_E;
     cmplx* field_V;
     cmplx* field_R;
+
+    double omega_v1;
+    double omega_v2;
+    double omega_v3;
+    double omega_v4;
+
+    double omega_e1;
+
 } parameters_spectra;
 
 typedef struct molecule{
@@ -50,6 +58,8 @@ typedef struct molecule{
     double* ems_spectra;
     double* vib_spectra;
     double* Raman_spectra;
+
+    cmplx* dyn_rho;
 } molecule;
 
 
@@ -338,6 +348,73 @@ void CalculateVibSpectraField(parameters_spectra* params, int k)
 }
 
 
+void CalculateRamanSpectraField(parameters_spectra* params, int k)
+//----------------------------------------------------//
+//   RETURNS THE ENTIRE FIELD AS A FUNCTION OF TIME   //
+//----------------------------------------------------//
+{
+    int i;
+    int nDIM = params->nDIM;
+    int timeDIM_vib = params->timeDIM_VR;
+
+    double* t = params->time_VR;
+
+    double A_vib = params->field_amp_VR;
+    double w_R = params->omega_R;
+
+    for(i=0; i<timeDIM_vib; i++)
+    {
+        params->field_R[i] = A_vib * pow(cos(M_PI*t[i]/(fabs(2*t[0]))), 2) * (cos(w_R + params->frequency_VR[k] * t[i]) + cos(w_R * t[i]));
+    }
+}
+
+
+void CalculateRamanControlField(parameters_spectra* params)
+//----------------------------------------------------//
+//   RETURNS THE ENTIRE FIELD AS A FUNCTION OF TIME   //
+//----------------------------------------------------//
+{
+    int i;
+    int nDIM = params->nDIM;
+    int timeDIM_vib = params->timeDIM_VR;
+
+    double* t = params->time_VR;
+
+    double A_vib = params->field_amp_VR;
+    double w_R = params->omega_R;
+
+    for(i=0; i<timeDIM_vib; i++)
+    {
+        params->field_R[i] = A_vib * pow(cos(M_PI*t[i]/(fabs(2*t[0]))), 2) * (
+        2*0.5*(
+//        cos(w_R + params->omega_v1 * t[i]) +
+//        cos(w_R + params->omega_v2 * t[i]) +
+//        cos(w_R + params->omega_v3 * t[i]) +
+        cos(w_R + params->omega_v4 * t[i])
+        ) + cos(w_R * t[i]));
+    }
+}
+
+
+void CalculateAbsorptionField(parameters_spectra* params)
+//----------------------------------------------------//
+//   RETURNS THE ENTIRE FIELD AS A FUNCTION OF TIME   //
+//----------------------------------------------------//
+{
+    int i;
+    int nDIM = params->nDIM;
+    int timeDIM = params->timeDIM_AE;
+
+    double* t = params->time_AE;
+
+    double A = params->field_amp_AE;
+
+    for(i=0; i<timeDIM; i++)
+    {
+        params->field_A[i] = A * pow(cos(M_PI*t[i]/(fabs(2*t[0]))), 2) * cos(params->omega_e1 * t[i]);
+    }
+}
+
 void L_operate(cmplx* Qmat, const cmplx field_ti, molecule* mol)
 //----------------------------------------------------//
 // 	    RETURNS Q <-- L[Q] AT A PARTICULAR TIME (t)   //
@@ -485,7 +562,6 @@ void PropagateVib(molecule* mol, parameters_spectra* params, int indx)
 //    GETTING rho(T)_{k=[3,4]} FROM rho(0) USING PROPAGATE FUNCTION     //
 //----------------------------------------------------------------------//
 {
-    printf(" %d \n", indx);
     int i, j, k;
     int tau_index, t_index;
     int nDIM = params->nDIM;
@@ -524,17 +600,168 @@ void PropagateVib(molecule* mol, parameters_spectra* params, int indx)
     free(L_rho_func);
 }
 
-cmplx* CalculateSpectra(molecule* molA, molecule* molB, parameters_spectra* abs_ems_spec_params)
+
+void PropagateRaman(molecule* mol, parameters_spectra* params, int indx)
+//----------------------------------------------------------------------//
+//    GETTING rho(T)_{k=[3,4]} FROM rho(0) USING PROPAGATE FUNCTION     //
+//----------------------------------------------------------------------//
+{
+    int i, j, k;
+    int tau_index, t_index;
+    int nDIM = params->nDIM;
+    int timeDIM_vib = params->timeDIM_VR;
+
+    cmplx *rho_0 = mol->rho_0;
+    double *time = params->time_VR;
+
+    cmplx* field = params->field_R;
+
+    double dt = time[1] - time[0];
+
+    cmplx* L_rho_func = (cmplx*)calloc(nDIM * nDIM, sizeof(cmplx));
+    copy_mat(rho_0, L_rho_func, nDIM);
+    copy_mat(rho_0, mol->rho, nDIM);
+
+    for(t_index=0; t_index<timeDIM_vib; t_index++)
+    {
+        k=1;
+        do
+        {
+            L_operate(L_rho_func, field[t_index], mol);
+            scale_mat(L_rho_func, dt/k, nDIM);
+            add_mat(L_rho_func, mol->rho, nDIM);
+            k+=1;
+        }while(complex_max_element(L_rho_func, nDIM) > 1.0E-8);
+
+        copy_mat(mol->rho, L_rho_func, nDIM);
+
+    }
+
+    for (j=1; j<(int)(nDIM/2); j++)
+    {
+        mol->Raman_spectra[indx] += mol->rho[j*nDIM + j];
+    }
+    free(L_rho_func);
+}
+
+void RamanControl(molecule* mol, parameters_spectra* params)
+//----------------------------------------------------------------------//
+//    GETTING rho(T)_{k=[3,4]} FROM rho(0) USING PROPAGATE FUNCTION     //
+//----------------------------------------------------------------------//
+{
+    int i, j, k;
+    int tau_index, t_index;
+    int nDIM = params->nDIM;
+    int timeDIM_vib = params->timeDIM_VR;
+
+    cmplx *rho_0 = mol->rho_0;
+    double *time = params->time_VR;
+
+    cmplx* field = params->field_R;
+
+    double dt = time[1] - time[0];
+
+    cmplx* L_rho_func = (cmplx*)calloc(nDIM * nDIM, sizeof(cmplx));
+    copy_mat(rho_0, L_rho_func, nDIM);
+    copy_mat(rho_0, mol->rho, nDIM);
+
+    for(t_index=0; t_index<timeDIM_vib; t_index++)
+    {
+        k=1;
+        do
+        {
+            L_operate(L_rho_func, field[t_index], mol);
+            scale_mat(L_rho_func, dt/k, nDIM);
+            add_mat(L_rho_func, mol->rho, nDIM);
+            k+=1;
+        }while(complex_max_element(L_rho_func, nDIM) > 1.0E-8);
+
+        for(i=0; i<nDIM; i++)
+        {
+            mol->dyn_rho[i*timeDIM_vib + t_index] = mol->rho[i*nDIM + i];
+        }
+
+        copy_mat(mol->rho, L_rho_func, nDIM);
+    }
+
+    free(L_rho_func);
+}
+
+
+void PropagateAbsorptionRef(molecule* mol, parameters_spectra* params)
+//----------------------------------------------------------------------//
+//    GETTING rho(T)_{k=[3,4]} FROM rho(0) USING PROPAGATE FUNCTION     //
+//----------------------------------------------------------------------//
+{
+
+    int i, j, k;
+    int tau_index, t_index;
+    int nDIM = params->nDIM;
+    int timeDIM_abs_ems = params->timeDIM_AE;
+
+    cmplx *rho_0 = mol->rho_0;
+    double *time = params->time_AE;
+
+    cmplx* field = params->field_A;
+
+    double dt = time[1] - time[0];
+
+    cmplx* L_rho_func = (cmplx*)calloc(nDIM * nDIM, sizeof(cmplx));
+    copy_mat(rho_0, L_rho_func, nDIM);
+//    copy_mat(rho_0, mol->rho, nDIM);
+
+    for(t_index=0; t_index<timeDIM_abs_ems; t_index++)
+    {
+        k=1;
+        do
+        {
+            L_operate(L_rho_func, field[t_index], mol);
+            scale_mat(L_rho_func, dt/k, nDIM);
+            add_mat(L_rho_func, mol->rho, nDIM);
+            k+=1;
+        }while(complex_max_element(L_rho_func, nDIM) > 1.0E-8);
+
+        for(i=0; i<nDIM; i++)
+        {
+            mol->dyn_rho[i*timeDIM_abs_ems + t_index] = mol->rho[i*nDIM + i];
+        }
+
+        copy_mat(mol->rho, L_rho_func, nDIM);
+
+    }
+
+    free(L_rho_func);
+}
+
+
+cmplx* CalculateSpectra(molecule* molA, molecule* molB, parameters_spectra* spec_params)
 //------------------------------------------------------------//
 //    GETTING rho(T) FROM rho(0) USING PROPAGATE FUNCTION     //
 //------------------------------------------------------------//
 {
-    copy_mat(molA->rho_0, molA->rho, abs_ems_spec_params->nDIM);
-    for(int i=0; i<abs_ems_spec_params->freqDIM_A; i++)
-    {
-        CalculateAbsSpectraField(abs_ems_spec_params, i);
-        PropagateAbs(molA, abs_ems_spec_params, i);
-        PropagateAbs(molB, abs_ems_spec_params, i);
-    }
+//    copy_mat(molA->rho_0, molA->rho, spec_params->nDIM);
+//    for(int i=0; i<spec_params->freqDIM_A; i++)
+//    {
+//        CalculateAbsSpectraField(spec_params, i);
+//        PropagateAbs(molA, spec_params, i);
+//        PropagateAbs(molB, spec_params, i);
+//    }
+//
+//    copy_mat(molA->rho_0, molA->rho, spec_params->nDIM);
+//    for(int i=0; i<spec_params->freqDIM_VR; i++)
+//    {
+//        CalculateRamanSpectraField(spec_params, i);
+//        PropagateRaman(molA, spec_params, i);
+//        PropagateRaman(molB, spec_params, i);
+//    }
 
+    copy_mat(molA->rho_0, molA->rho, spec_params->nDIM);
+    copy_mat(molB->rho_0, molB->rho, spec_params->nDIM);
+    CalculateRamanControlField(spec_params);
+    CalculateAbsorptionField(spec_params);
+
+    RamanControl(molA, spec_params);
+    RamanControl(molB, spec_params);
+    PropagateAbsorptionRef(molA, spec_params);
+    PropagateAbsorptionRef(molB, spec_params);
 }

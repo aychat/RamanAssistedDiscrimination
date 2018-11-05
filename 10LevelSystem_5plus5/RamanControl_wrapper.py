@@ -52,7 +52,13 @@ class Parameters_Spectra(Structure):
         ('field_A', POINTER(c_complex)),
         ('field_E', POINTER(c_complex)),
         ('field_V', POINTER(c_complex)),
-        ('field_R', POINTER(c_complex))
+        ('field_R', POINTER(c_complex)),
+
+        ('omega_v1', c_double),
+        ('omega_v2', c_double),
+        ('omega_v3', c_double),
+        ('omega_v4', c_double),
+        ('omega_e1', c_double)
     ]
 
 
@@ -72,6 +78,7 @@ class Molecule(Structure):
         ('ems_spectra', POINTER(c_double)),
         ('vib_spectra', POINTER(c_double)),
         ('Raman_spectra', POINTER(c_double)),
+        ('dyn_rho', POINTER(c_complex))
     ]
 
 
